@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@worldcoin/minikit-js": "^1.9.6",
+    "@worldcoin/minikit-react": "^1.9.7",
     "next": "15.5.4",
     "react": "19.1.0",
     "react-dom": "19.1.0"

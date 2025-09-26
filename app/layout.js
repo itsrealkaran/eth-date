@@ -19,9 +19,12 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
+  const appId =
+    process.env.NEXT_PUBLIC_APP_ID || "app_a00ae22bb2c8eb77dff014f45333ba3";
+  console.log("App ID:", appId);
   return (
     <html lang="en">
-      <MiniKitProvider appId={process.env.NEXT_PUBLIC_APP_ID}>
+      <MiniKitProvider appId={appId}>
         <body
           className={`${geistSans.variable} ${geistMono.variable}`}
           suppressHydrationWarning={true}
