@@ -21,8 +21,11 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <MiniKitProvider>
-        <body className={`${geistSans.variable} ${geistMono.variable}`}>
+      <MiniKitProvider appId={process.env.NEXT_PUBLIC_APP_ID}>
+        <body
+          className={`${geistSans.variable} ${geistMono.variable}`}
+          suppressHydrationWarning={true}
+        >
           {children}
         </body>
       </MiniKitProvider>

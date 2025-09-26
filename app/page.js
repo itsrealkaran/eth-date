@@ -9,11 +9,16 @@ export default function Home() {
   const [verificationResult, setVerificationResult] = useState(null);
 
   useEffect(() => {
-    if (MiniKit.isInstalled()) {
-      setIsInstalled(true);
-      console.log("MiniKit is installed and ready!");
-    } else {
-      console.log("MiniKit is not installed");
+    // Check if we're in a browser environment
+    if (typeof window !== "undefined") {
+      if (MiniKit.isInstalled()) {
+        setIsInstalled(true);
+        console.log("MiniKit is installed and ready!");
+      } else {
+        console.log(
+          "MiniKit is not installed. Make sure you're running the application inside of World App"
+        );
+      }
     }
   }, []);
 
@@ -156,11 +161,22 @@ export default function Home() {
                 How to Test
               </h3>
               <ol className="text-sm text-yellow-700 space-y-1">
-                <li>1. Open this app in World App</li>
+                <li>
+                  1. Open this app in World App (not in a regular browser)
+                </li>
                 <li>2. Make sure you have a wallet connected</li>
                 <li>3. Try the different actions above</li>
                 <li>4. Check the console for detailed logs</li>
               </ol>
+              {!isInstalled && (
+                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded">
+                  <p className="text-sm text-red-700">
+                    <strong>Note:</strong> MiniKit is not available in regular
+                    browsers. You need to test this app inside World App to see
+                    the full functionality.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
