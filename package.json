@@ -8,6 +8,9 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
+    "dev:tunnel": "concurrently \"next dev\" \"ngrok http 3000\"",
+    "tunnel": "ngrok http 3000",
+    "tunnel:config": "ngrok start --config ngrok.yml",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
