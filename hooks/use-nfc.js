@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { isValidURL } from "../utils/nfc";
+import { isValidURL } from "@/lib/nfc";
 
 export const useNFC = () => {
   const [isSupported, setIsSupported] = useState(false);
