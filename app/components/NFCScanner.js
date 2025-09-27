@@ -238,18 +238,14 @@ export default function NFCScanner() {
                 <div className="bg-white rounded-xl shadow-lg p-8 text-center">
                     <div className="flex items-center justify-center gap-3 mb-4">
                         <h1 className="text-4xl font-bold text-gray-900">NFC Profile Scanner</h1>
-                        {(process.env.NODE_ENV === 'development' ||
-                            process.env.DEV === 'true' ||
-                            (typeof window !== 'undefined' && window.location.hostname === 'localhost')) && (
-                                <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium">
-                                    DEV MODE
-                                </span>
-                            )}
+                        {(typeof window !== 'undefined' && window.location.hostname === 'localhost') && (
+                            <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium">
+                                DEV MODE
+                            </span>
+                        )}
                     </div>
                     <p className="text-xl text-gray-600 mb-8">
-                        {(process.env.NODE_ENV === 'development' ||
-                            process.env.DEV === 'true' ||
-                            (typeof window !== 'undefined' && window.location.hostname === 'localhost'))
+                        {(typeof window !== 'undefined' && window.location.hostname === 'localhost')
                             ? 'Click to simulate NFC tag scanning'
                             : 'Tap an NFC tag to view profile'
                         }
@@ -267,18 +263,14 @@ export default function NFCScanner() {
                             <div className="flex items-center gap-4">
                                 <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                                 <span>
-                                    {(process.env.NODE_ENV === 'development' ||
-                                        process.env.DEV === 'true' ||
-                                        (typeof window !== 'undefined' && window.location.hostname === 'localhost'))
+                                    {(typeof window !== 'undefined' && window.location.hostname === 'localhost')
                                         ? 'Simulating...'
                                         : 'Scanning...'
                                     }
                                 </span>
                             </div>
                         ) : (
-                            (process.env.NODE_ENV === 'development' ||
-                                process.env.DEV === 'true' ||
-                                (typeof window !== 'undefined' && window.location.hostname === 'localhost'))
+                            (typeof window !== 'undefined' && window.location.hostname === 'localhost')
                                 ? 'Simulate Scan'
                                 : 'Start Scan'
                         )}
@@ -286,9 +278,7 @@ export default function NFCScanner() {
 
                     {isScanning && (
                         <p className="text-lg text-blue-700 mt-6">
-                            {(process.env.NODE_ENV === 'development' ||
-                                process.env.DEV === 'true' ||
-                                (typeof window !== 'undefined' && window.location.hostname === 'localhost'))
+                            {(typeof window !== 'undefined' && window.location.hostname === 'localhost')
                                 ? 'Simulating NFC tag detection...'
                                 : 'Ready to scan NFC tags...'
                             }

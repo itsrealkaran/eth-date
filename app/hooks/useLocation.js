@@ -15,12 +15,10 @@ export const useLocation = (profileData = null) => {
     const reconnectTimeoutRef = useRef(null);
     const userId = useRef(null);
 
-    // Generate or get user ID
+    // Generate or get user ID - only use profile UUID or dev mode ID
     useEffect(() => {
-        // Check if we're in development mode
-        const isDev = process.env.NODE_ENV === 'development' ||
-            process.env.DEV === 'true' ||
-            typeof window !== 'undefined' && window.location.hostname === 'localhost';
+        // Check if we're in development mode based on hostname
+        const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
         if (isDev) {
             // Use fixed development user ID
@@ -31,14 +29,9 @@ export const useLocation = (profileData = null) => {
             userId.current = profileData.uuid;
             console.log('Using profile UUID as user ID:', userId.current);
         } else {
-            // Fallback: generate or get stored user ID
-            let storedUserId = localStorage.getItem('eth-date-user-id');
-            if (!storedUserId) {
-                storedUserId = 'user_' + Math.random().toString(36).substr(2, 9);
-                localStorage.setItem('eth-date-user-id', storedUserId);
-            }
-            userId.current = storedUserId;
-            console.log('Using fallback user ID:', userId.current);
+            // No fallback user ID - must have valid profile data
+            userId.current = null;
+            console.log('No valid user ID available - profile data required');
         }
     }, [profileData]);
 
@@ -49,10 +42,8 @@ export const useLocation = (profileData = null) => {
         }
 
         try {
-            // Check if we're in development mode
-            const isDev = process.env.NODE_ENV === 'development' ||
-                process.env.DEV === 'true' ||
-                typeof window !== 'undefined' && window.location.hostname === 'localhost';
+            // Check if we're in development mode based on hostname
+            const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
             // Connect to the WebSocket server from the etgl.ts backend
             const defaultWsUrl = isDev ? 'ws://localhost:3002' : 'wss://arweave.tech/ws';
@@ -134,9 +125,27 @@ export const useLocation = (profileData = null) => {
         }
     }, []);
 
+    // Check if conditions are met for location tracking
+    const canTrackLocation = useCallback(() => {
+        // Check if we're in development mode
+        const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+
+        if (isDev) {
+            // In dev mode, always allow tracking
+            return true;
+        }
+
+        // In production, require valid profile data with gender set
+        return profileData &&
+            profileData.user &&
+            profileData.user.gender &&
+            userId.current;
+    }, [profileData]);
+
     // Send location update to server
     const sendLocationUpdate = useCallback((coordinates) => {
-        if (wsRef.current?.readyState === WebSocket.OPEN && userId.current) {
+        // Only send location data if conditions are met
+        if (wsRef.current?.readyState === WebSocket.OPEN && userId.current && canTrackLocation()) {
             const message = {
                 type: 'gps_update',
                 userId: userId.current,
@@ -149,8 +158,15 @@ export const useLocation = (profileData = null) => {
             };
 
             wsRef.current.send(JSON.stringify(message));
+            console.log('Location update sent for user:', userId.current);
+        } else {
+            console.log('Location update blocked - conditions not met:', {
+                wsReady: wsRef.current?.readyState === WebSocket.OPEN,
+                hasUserId: !!userId.current,
+                canTrack: canTrackLocation()
+            });
         }
-    }, []);
+    }, [canTrackLocation]);
 
     // Start location tracking
     const startTracking = useCallback(() => {
@@ -163,16 +179,23 @@ export const useLocation = (profileData = null) => {
             return;
         }
 
+        // Check if conditions are met for location tracking
+        if (!canTrackLocation()) {
+            const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+            if (!isDev) {
+                setError('Location tracking requires NFC profile scan and gender selection');
+                return;
+            }
+        }
+
         setIsTracking(true);
         setError(null);
 
         // Connect to WebSocket
         connectWebSocket();
 
-        // Check if we're in development mode
-        const isDev = process.env.NODE_ENV === 'development' ||
-            process.env.DEV === 'true' ||
-            typeof window !== 'undefined' && window.location.hostname === 'localhost';
+        // Check if we're in development mode based on hostname
+        const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
         // More lenient options for desktop environments
         const options = {
@@ -429,6 +452,7 @@ export const useLocation = (profileData = null) => {
         userLocations,
         connectionStatus,
         userId: userId.current,
+        canTrackLocation,
         startTracking,
         stopTracking,
         getDirectionInfo,

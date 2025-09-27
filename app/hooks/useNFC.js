@@ -16,10 +16,8 @@ export const useNFC = () => {
 
     // Check NFC support on component mount
     useEffect(() => {
-        // Check if we're in development mode
-        const isDev = process.env.NODE_ENV === 'development' ||
-            process.env.DEV === 'true' ||
-            typeof window !== 'undefined' && window.location.hostname === 'localhost';
+        // Check if we're in development mode based on hostname
+        const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
         if (isDev) {
             // In development mode, always consider NFC as supported
@@ -39,10 +37,8 @@ export const useNFC = () => {
             setLoadingProfile(true);
             setError(null);
 
-            // Check if we're in development mode
-            const isDev = process.env.NODE_ENV === 'development' ||
-                process.env.DEV === 'true' ||
-                typeof window !== 'undefined' && window.location.hostname === 'localhost';
+            // Check if we're in development mode based on hostname
+            const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
             const defaultApiUrl = isDev ? 'http://localhost:3001/etgl' : 'https://arweave.tech/api/etgl';
             const baseUrl = process.env.NEXT_PUBLIC_API_URL || defaultApiUrl;
@@ -94,10 +90,8 @@ export const useNFC = () => {
             setError(null);
             setIsScanning(true);
 
-            // Check if we're in development mode
-            const isDev = process.env.NODE_ENV === 'development' ||
-                process.env.DEV === 'true' ||
-                typeof window !== 'undefined' && window.location.hostname === 'localhost';
+            // Check if we're in development mode based on hostname
+            const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
             if (isDev) {
                 // Development mode: simulate NFC scanning with mock data
@@ -236,10 +230,8 @@ export const useNFC = () => {
             setSettingGender(true);
             setError(null);
 
-            // Check if we're in development mode
-            const isDev = process.env.NODE_ENV === 'development' ||
-                process.env.DEV === 'true' ||
-                typeof window !== 'undefined' && window.location.hostname === 'localhost';
+            // Check if we're in development mode based on hostname
+            const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
             const defaultApiUrl = isDev ? 'http://localhost:3001/etgl' : 'https://arweave.tech/api/etgl';
             const baseUrl = process.env.NEXT_PUBLIC_API_URL || defaultApiUrl;

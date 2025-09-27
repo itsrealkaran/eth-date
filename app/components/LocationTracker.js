@@ -11,6 +11,7 @@ export default function LocationTracker({ profileData = null }) {
         selectedUsers,
         connectionStatus,
         userId,
+        canTrackLocation,
         startTracking,
         stopTracking,
         getDirectionInfo,
@@ -33,16 +34,16 @@ export default function LocationTracker({ profileData = null }) {
         setDirectionInfo(info);
     }, [currentLocation, selectedUsers, getDirectionInfo]);
 
-    // Auto-start tracking when component mounts
+    // Auto-start tracking when component mounts and conditions are met
     useEffect(() => {
-        if (!isTracking) {
+        if (!isTracking && canTrackLocation()) {
             startTracking();
         }
 
         return () => {
             stopTracking();
         };
-    }, []);
+    }, [canTrackLocation, isTracking, startTracking, stopTracking]);
 
     const formatDistance = (distance) => {
         if (distance < 1000) {
@@ -119,6 +120,28 @@ export default function LocationTracker({ profileData = null }) {
         );
     };
 
+    // Show notice when location tracking is disabled due to missing conditions
+    if (!canTrackLocation()) {
+        const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+        if (!isDev) {
+            return (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <div className="flex items-center">
+                        <div className="text-blue-600 mr-2">🔒</div>
+                        <div>
+                            <div className="font-semibold text-blue-800">Location Tracking Disabled</div>
+                            <div className="text-blue-700 text-sm">
+                                Location tracking requires NFC profile scan and gender selection.
+                                {!profileData && ' Please scan an NFC tag first.'}
+                                {profileData && !profileData.user?.gender && ' Please complete gender selection.'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+    }
+
     // Show error only if we don't have any location (including fallback)
     if (currentError && !currentLocation) {
         return (
@@ -170,9 +193,12 @@ export default function LocationTracker({ profileData = null }) {
                     </div>
                     <button
                         onClick={isTracking ? stopTracking : startTracking}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${isTracking
-                            ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                            : 'bg-green-100 text-green-700 hover:bg-green-200'
+                        disabled={!canTrackLocation() && !isTracking}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${!canTrackLocation() && !isTracking
+                                ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                                : isTracking
+                                    ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                                    : 'bg-green-100 text-green-700 hover:bg-green-200'
                             }`}
                     >
                         {isTracking ? 'Stop' : 'Start'} Tracking
@@ -263,9 +289,9 @@ export default function LocationTracker({ profileData = null }) {
                                 PROFILE UUID
                             </span>
                         )}
-                        {(!profileData || !profileData.uuid) && userId !== '1d7s7pl' && (
-                            <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs font-medium">
-                                FALLBACK
+                        {!userId && (
+                            <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-medium">
+                                NO USER ID
                             </span>
                         )}
                     </div>
