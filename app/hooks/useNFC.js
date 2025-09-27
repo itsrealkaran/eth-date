@@ -234,7 +234,7 @@ export const useNFC = () => {
             const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
             const defaultApiUrl = isDev ? 'http://localhost:3001/etgl' : 'https://arweave.tech/api/etgl';
-            const baseUrl = process.env.NEXT_PUBLIC_API_URL || defaultApiUrl;
+            const baseUrl = defaultApiUrl;
             const apiUrl = `${baseUrl}/set-gender/${profileId}?gender=${gender}`;
 
             console.log('Setting gender:', gender, 'for profile ID:', profileId);
