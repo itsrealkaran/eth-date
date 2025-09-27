@@ -415,24 +415,6 @@ export default function ExploreCanvas({ userGender, onToggleLeaderboard, showLea
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setViewMode(viewMode === "compass" ? "map" : "compass")}
-              className="h-8 px-3 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700"
-            >
-              {viewMode === "compass" ? (
-                <>
-                  <Compass className="w-4 h-4 mr-1" />
-                  <span className="text-xs font-medium">Compass</span>
-                </>
-              ) : (
-                <>
-                  <Map className="w-4 h-4 mr-1" />
-                  <span className="text-xs font-medium">Map</span>
-                </>
-              )}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
               onClick={onToggleLeaderboard}
               className="h-8 px-3 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700"
             >
@@ -451,6 +433,18 @@ export default function ExploreCanvas({ userGender, onToggleLeaderboard, showLea
       />
 
       <div className="absolute right-4 top-20 flex flex-col space-y-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setViewMode(viewMode === "compass" ? "map" : "compass")}
+          className="w-10 h-10 rounded-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/50 hover:bg-white dark:hover:bg-slate-800"
+        >
+          {viewMode === "compass" ? (
+            <Compass className="w-4 h-4" />
+          ) : (
+            <Map className="w-4 h-4" />
+          )}
+        </Button>
         <Button
           variant="ghost"
           size="sm"
