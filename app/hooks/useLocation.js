@@ -55,7 +55,7 @@ export const useLocation = (profileData = null) => {
                 typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
             // Connect to the WebSocket server from the etgl.ts backend
-            const defaultWsUrl = isDev ? 'ws://localhost:3002' : 'wss://arweave.tech:3002';
+            const defaultWsUrl = isDev ? 'ws://localhost:3002' : 'wss://arweave.tech/ws';
             const wsUrl = process.env.NEXT_PUBLIC_WS_URL || defaultWsUrl;
             wsRef.current = new WebSocket(wsUrl);
             console.log('Connecting to WebSocket:', wsUrl, isDev ? '(dev mode)' : '(production)');
