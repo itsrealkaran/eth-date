@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Trophy, Users, Navigation, Target, Plus, Minus, Maximize2 } from "lucide-react"
+import { Trophy, Users, Navigation, Target, Plus, Minus, Maximize2, Compass, Map } from "lucide-react"
 import { useWebSocket } from "@/hooks/use-websocket"
 
 export default function ExploreCanvas({ userGender, onToggleLeaderboard, showLeaderboard }) {
@@ -14,39 +14,150 @@ export default function ExploreCanvas({ userGender, onToggleLeaderboard, showLea
   const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 })
+  const [viewMode, setViewMode] = useState("compass") // "compass" or "map"
+  const [compassAngle, setCompassAngle] = useState(0)
+  const [distanceToTarget, setDistanceToTarget] = useState(0)
   const { isConnected, users, error, sendPosition } = useWebSocket()
 
   useEffect(() => {
-    if (users.length > 0) {
-      let nearest = users[0]
-      let minDistance = Number.POSITIVE_INFINITY
+    if (users.length > 0 && userGender) {
+      // Find the nearest user of opposite gender
+      const oppositeGenderUsers = users.filter(user => user.gender !== userGender)
+      
+      if (oppositeGenderUsers.length > 0) {
+        let nearest = oppositeGenderUsers[0]
+        let minDistance = Number.POSITIVE_INFINITY
 
-      users.forEach((user) => {
-        const dx = user.x - userPosition.x
-        const dy = user.y - userPosition.y
-        const distance = Math.sqrt(dx * dx + dy * dy)
+        oppositeGenderUsers.forEach((user) => {
+          const dx = user.x - userPosition.x
+          const dy = user.y - userPosition.y
+          const distance = Math.sqrt(dx * dx + dy * dy)
 
-        if (distance < minDistance) {
-          minDistance = distance
-          nearest = user
-        }
-      })
+          if (distance < minDistance) {
+            minDistance = distance
+            nearest = user
+          }
+        })
 
-      setNearestUser(nearest)
-      setTargetCoordinate({ x: nearest.x, y: nearest.y })
+        setNearestUser(nearest)
+        setTargetCoordinate({ x: nearest.x, y: nearest.y })
+        setDistanceToTarget(minDistance)
+
+        // Calculate compass angle to target
+        const dx = nearest.x - userPosition.x
+        const dy = nearest.y - userPosition.y
+        const angle = Math.atan2(dy, dx) * (180 / Math.PI)
+        setCompassAngle(angle)
+      } else {
+        setNearestUser(null)
+        setTargetCoordinate(null)
+        setDistanceToTarget(0)
+      }
     }
-  }, [users, userPosition])
+  }, [users, userPosition, userGender])
 
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+  const renderCompass = (ctx, canvas) => {
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
+    // Background gradient
+    const gradient = ctx.createRadialGradient(
+      canvas.width / 2, canvas.height / 2, 0,
+      canvas.width / 2, canvas.height / 2, canvas.width / 2
+    )
+    gradient.addColorStop(0, "rgba(99, 102, 241, 0.1)")
+    gradient.addColorStop(1, "rgba(99, 102, 241, 0.02)")
+    ctx.fillStyle = gradient
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-    canvas.width = canvas.offsetWidth
-    canvas.height = canvas.offsetHeight
+    // Draw compass circle
+    const centerX = canvas.width / 2
+    const centerY = canvas.height / 2
+    const radius = Math.min(canvas.width, canvas.height) * 0.3
 
+    // Outer ring
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, radius + 20, 0, 2 * Math.PI)
+    ctx.strokeStyle = "rgba(148, 163, 184, 0.2)"
+    ctx.lineWidth = 2
+    ctx.stroke()
+
+    // Inner circle
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI)
+    ctx.fillStyle = "rgba(255, 255, 255, 0.1)"
+    ctx.fill()
+    ctx.strokeStyle = "rgba(148, 163, 184, 0.3)"
+    ctx.lineWidth = 1
+    ctx.stroke()
+
+    if (nearestUser && distanceToTarget > 0) {
+      // Draw directional arrow
+      const arrowLength = radius * 0.7
+      const arrowAngle = (compassAngle * Math.PI) / 180
+      
+      const arrowX = centerX + Math.cos(arrowAngle) * arrowLength
+      const arrowY = centerY + Math.sin(arrowAngle) * arrowLength
+
+      // Arrow shaft
+      ctx.beginPath()
+      ctx.moveTo(centerX, centerY)
+      ctx.lineTo(arrowX, arrowY)
+      ctx.strokeStyle = userGender === "male" ? "#6366f1" : "#10b981"
+      ctx.lineWidth = 6
+      ctx.stroke()
+
+      // Arrow head
+      const headLength = 20
+      const headAngle = Math.PI / 6
+      
+      ctx.beginPath()
+      ctx.moveTo(arrowX, arrowY)
+      ctx.lineTo(
+        arrowX - headLength * Math.cos(arrowAngle - headAngle),
+        arrowY - headLength * Math.sin(arrowAngle - headAngle)
+      )
+      ctx.moveTo(arrowX, arrowY)
+      ctx.lineTo(
+        arrowX - headLength * Math.cos(arrowAngle + headAngle),
+        arrowY - headLength * Math.sin(arrowAngle + headAngle)
+      )
+      ctx.strokeStyle = userGender === "male" ? "#4f46e5" : "#059669"
+      ctx.lineWidth = 8
+      ctx.stroke()
+
+      // Center dot
+      ctx.beginPath()
+      ctx.arc(centerX, centerY, 8, 0, 2 * Math.PI)
+      ctx.fillStyle = userGender === "male" ? "#4f46e5" : "#059669"
+      ctx.fill()
+      ctx.strokeStyle = "#ffffff"
+      ctx.lineWidth = 2
+      ctx.stroke()
+
+      // Distance indicator
+      const distanceRadius = Math.max(20, Math.min(radius * 0.8, distanceToTarget * 2))
+      ctx.beginPath()
+      ctx.arc(centerX, centerY, distanceRadius, 0, 2 * Math.PI)
+      ctx.strokeStyle = "rgba(251, 191, 36, 0.6)"
+      ctx.lineWidth = 2
+      ctx.setLineDash([5, 5])
+      ctx.stroke()
+      ctx.setLineDash([])
+    } else {
+      // No target - show center dot only
+      ctx.beginPath()
+      ctx.arc(centerX, centerY, 12, 0, 2 * Math.PI)
+      ctx.fillStyle = "rgba(148, 163, 184, 0.5)"
+      ctx.fill()
+      ctx.strokeStyle = "#ffffff"
+      ctx.lineWidth = 2
+      ctx.stroke()
+    }
+  }
+
+  const renderMap = (ctx, canvas) => {
+    // Original map rendering logic
     ctx.save()
     ctx.translate(canvas.width / 2, canvas.height / 2)
     ctx.scale(zoom, zoom)
@@ -197,7 +308,24 @@ export default function ExploreCanvas({ userGender, onToggleLeaderboard, showLea
     })
 
     ctx.restore()
-  }, [users, userPosition, userGender, targetCoordinate, nearestUser, zoom, cameraOffset])
+  }
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+
+    canvas.width = canvas.offsetWidth
+    canvas.height = canvas.offsetHeight
+
+    if (viewMode === "compass") {
+      renderCompass(ctx, canvas)
+    } else {
+      renderMap(ctx, canvas)
+    }
+  }, [users, userPosition, userGender, targetCoordinate, nearestUser, zoom, cameraOffset, viewMode, compassAngle, distanceToTarget])
 
   const handleCanvasInteraction = (event) => {
     const canvas = canvasRef.current
@@ -277,18 +405,41 @@ export default function ExploreCanvas({ userGender, onToggleLeaderboard, showLea
               <div className="flex items-center space-x-2 px-2 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30">
                 <Target className="w-3 h-3 text-amber-600" />
                 <span className="text-xs font-medium text-amber-700 dark:text-amber-400">{nearestUser.name}</span>
+                <span className="text-xs text-amber-600 dark:text-amber-400">
+                  {Math.round(distanceToTarget)}m
+                </span>
               </div>
             )}
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onToggleLeaderboard}
-            className="h-8 px-3 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700"
-          >
-            <Trophy className="w-4 h-4 mr-1" />
-            <span className="text-xs font-medium">Ranks</span>
-          </Button>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setViewMode(viewMode === "compass" ? "map" : "compass")}
+              className="h-8 px-3 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700"
+            >
+              {viewMode === "compass" ? (
+                <>
+                  <Compass className="w-4 h-4 mr-1" />
+                  <span className="text-xs font-medium">Compass</span>
+                </>
+              ) : (
+                <>
+                  <Map className="w-4 h-4 mr-1" />
+                  <span className="text-xs font-medium">Map</span>
+                </>
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onToggleLeaderboard}
+              className="h-8 px-3 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700"
+            >
+              <Trophy className="w-4 h-4 mr-1" />
+              <span className="text-xs font-medium">Ranks</span>
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -328,26 +479,46 @@ export default function ExploreCanvas({ userGender, onToggleLeaderboard, showLea
 
       <div className="absolute bottom-4 left-4 right-4 p-3 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/50 dark:border-slate-800/50">
         <p className="text-xs text-center text-slate-600 dark:text-slate-400 mb-2">
-          Tap to move • Find nearby explorers
+          {viewMode === "compass" 
+            ? "Arrow points to nearest person • Follow the direction" 
+            : "Tap to move • Find nearby explorers"
+          }
         </p>
-        <div className="flex items-center justify-center space-x-4 text-xs">
-          <div className="flex items-center space-x-1">
-            <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
-            <span className="text-slate-600 dark:text-slate-400">You</span>
+        {viewMode === "compass" ? (
+          <div className="flex items-center justify-center space-x-4 text-xs">
+            <div className="flex items-center space-x-1">
+              <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+              <span className="text-slate-600 dark:text-slate-400">You</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <Navigation className="w-3 h-3 text-amber-500" />
+              <span className="text-slate-600 dark:text-slate-400">Direction</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <div className="w-2 h-2 rounded-full bg-amber-400"></div>
+              <span className="text-slate-600 dark:text-slate-400">Distance</span>
+            </div>
           </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-            <span className="text-slate-600 dark:text-slate-400">Guys</span>
+        ) : (
+          <div className="flex items-center justify-center space-x-4 text-xs">
+            <div className="flex items-center space-x-1">
+              <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+              <span className="text-slate-600 dark:text-slate-400">You</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+              <span className="text-slate-600 dark:text-slate-400">Guys</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+              <span className="text-slate-600 dark:text-slate-400">Girls</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <Navigation className="w-3 h-3 text-amber-500" />
+              <span className="text-slate-600 dark:text-slate-400">Target</span>
+            </div>
           </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-            <span className="text-slate-600 dark:text-slate-400">Girls</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <Navigation className="w-3 h-3 text-amber-500" />
-            <span className="text-slate-600 dark:text-slate-400">Target</span>
-          </div>
-        </div>
+        )}
       </div>
 
       {error && (
