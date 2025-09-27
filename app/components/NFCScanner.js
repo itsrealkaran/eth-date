@@ -9,15 +9,15 @@ export default function NFCScanner() {
         isScanning,
         error,
         lastScan,
-        scanHistory,
+        profileData,
+        loadingProfile,
         startScan,
         stopScan,
         writeToTag,
-        clearHistory
+        clearProfile
     } = useNFC();
 
     const [writeText, setWriteText] = useState('');
-    const [showHistory, setShowHistory] = useState(false);
 
     const handleWrite = async () => {
         if (!writeText.trim()) return;
@@ -65,7 +65,7 @@ export default function NFCScanner() {
         <div className="max-w-2xl mx-auto p-6 space-y-6">
             <div className="text-center">
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">NFC Scanner</h1>
-                <p className="text-gray-600">Scan and interact with NFC tags</p>
+                <p className="text-gray-600">Scan NFC tags with URLs to fetch profile data from Arweave</p>
             </div>
 
             {/* Error Display */}
@@ -85,8 +85,8 @@ export default function NFCScanner() {
                         onClick={startScan}
                         disabled={isScanning}
                         className={`px-6 py-3 rounded-lg font-medium transition-colors ${isScanning
-                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            : 'bg-blue-600 text-white hover:bg-blue-700'
                             }`}
                     >
                         {isScanning ? 'Scanning...' : 'Start Scan'}
@@ -96,8 +96,8 @@ export default function NFCScanner() {
                         onClick={stopScan}
                         disabled={!isScanning}
                         className={`px-6 py-3 rounded-lg font-medium transition-colors ${!isScanning
-                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                : 'bg-red-600 text-white hover:bg-red-700'
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            : 'bg-red-600 text-white hover:bg-red-700'
                             }`}
                     >
                         Stop Scan
@@ -128,8 +128,8 @@ export default function NFCScanner() {
                         onClick={handleWrite}
                         disabled={!writeText.trim()}
                         className={`px-6 py-2 rounded-lg font-medium transition-colors ${!writeText.trim()
-                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                : 'bg-green-600 text-white hover:bg-green-700'
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            : 'bg-green-600 text-white hover:bg-green-700'
                             }`}
                     >
                         Write
@@ -162,37 +162,55 @@ export default function NFCScanner() {
                 </div>
             )}
 
-            {/* Scan History */}
-            {scanHistory.length > 0 && (
+            {/* Profile Data Display */}
+            {(profileData || loadingProfile) && (
                 <div className="bg-white border border-gray-200 rounded-lg p-6">
                     <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-semibold">Scan History</h2>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => setShowHistory(!showHistory)}
-                                className="px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            >
-                                {showHistory ? 'Hide' : 'Show'} ({scanHistory.length})
-                            </button>
-                            <button
-                                onClick={clearHistory}
-                                className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            >
-                                Clear
-                            </button>
-                        </div>
+                        <h2 className="text-xl font-semibold">Profile Data</h2>
+                        <button
+                            onClick={clearProfile}
+                            className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                            Clear
+                        </button>
                     </div>
 
-                    {showHistory && (
-                        <div className="space-y-4 max-h-96 overflow-y-auto">
-                            {scanHistory.map((scan) => (
-                                <div key={scan.id} className="border border-gray-100 rounded-lg p-4">
-                                    <div className="text-sm text-gray-600 mb-2">
-                                        {formatTimestamp(scan.timestamp)} - {scan.serialNumber}
-                                    </div>
-                                    {scan.records.map((record, index) => renderRecord(record, index))}
+                    {loadingProfile && (
+                        <div className="flex items-center gap-2 text-blue-600">
+                            <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                            <span>Fetching profile data...</span>
+                        </div>
+                    )}
+
+                    {profileData && !loadingProfile && (
+                        <div className="space-y-4">
+                            {/* Structured Profile Display */}
+                            {typeof profileData === 'object' && profileData !== null ? (
+                                <div className="space-y-3">
+                                    {Object.entries(profileData).map(([key, value]) => (
+                                        <div key={key} className="bg-gray-50 p-3 rounded-lg">
+                                            <div className="text-sm font-medium text-gray-700 capitalize mb-1">
+                                                {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                                            </div>
+                                            <div className="text-sm text-gray-800">
+                                                {typeof value === 'object' && value !== null ? (
+                                                    <pre className="whitespace-pre-wrap text-xs">
+                                                        {JSON.stringify(value, null, 2)}
+                                                    </pre>
+                                                ) : (
+                                                    <span className="break-all">{String(value)}</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
+                            ) : (
+                                <div className="bg-gray-50 p-4 rounded-lg">
+                                    <pre className="text-sm text-gray-800 whitespace-pre-wrap overflow-x-auto">
+                                        {JSON.stringify(profileData, null, 2)}
+                                    </pre>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

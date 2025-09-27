@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { isValidURL } from '../utils/nfc';
 
 export const useNFC = () => {
     const [isSupported, setIsSupported] = useState(false);
     const [isScanning, setIsScanning] = useState(false);
     const [error, setError] = useState(null);
     const [lastScan, setLastScan] = useState(null);
-    const [scanHistory, setScanHistory] = useState([]);
+    const [profileData, setProfileData] = useState(null);
+    const [loadingProfile, setLoadingProfile] = useState(false);
 
     // Check NFC support on component mount
     useEffect(() => {
@@ -16,6 +18,31 @@ export const useNFC = () => {
         } else {
             setIsSupported(false);
             setError('NFC is not supported on this device/browser');
+        }
+    }, []);
+
+    // Function to fetch profile data from Arweave API
+    const fetchProfileData = useCallback(async (url) => {
+        try {
+            setLoadingProfile(true);
+            setError(null);
+
+            const apiUrl = `https://arweave.tech/api/etgl/profile?url=${encodeURIComponent(url)}`;
+            const response = await fetch(apiUrl);
+
+            if (!response.ok) {
+                throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            setProfileData(data);
+            console.log('Profile data received:', data);
+        } catch (error) {
+            console.error('Error fetching profile data:', error);
+            setError(`Failed to fetch profile data: ${error.message}`);
+            setProfileData(null);
+        } finally {
+            setLoadingProfile(false);
         }
     }, []);
 
@@ -38,7 +65,7 @@ export const useNFC = () => {
             console.log('NFC scan started successfully');
 
             // Listen for NFC tags
-            ndef.addEventListener('reading', ({ message, serialNumber }) => {
+            ndef.addEventListener('reading', async ({ message, serialNumber }) => {
                 console.log('NFC tag detected:', { message, serialNumber });
 
                 const scanData = {
@@ -75,7 +102,19 @@ export const useNFC = () => {
                 }
 
                 setLastScan(scanData);
-                setScanHistory(prev => [scanData, ...prev.slice(0, 9)]); // Keep last 10 scans
+
+                // Check if any record contains a URL and make API call
+                for (const record of scanData.records) {
+                    if (record.recordType === 'url' || record.recordType === 'absolute-url') {
+                        console.log('URL detected in NFC tag:', record.data);
+                        await fetchProfileData(record.data);
+                        break; // Only process the first URL found
+                    } else if (record.recordType === 'text' && isValidURL(record.data)) {
+                        console.log('URL detected in text record:', record.data);
+                        await fetchProfileData(record.data);
+                        break;
+                    }
+                }
             });
 
             ndef.addEventListener('readingerror', () => {
@@ -123,9 +162,9 @@ export const useNFC = () => {
         }
     }, [isSupported]);
 
-    // Clear scan history
-    const clearHistory = useCallback(() => {
-        setScanHistory([]);
+    // Clear profile data
+    const clearProfile = useCallback(() => {
+        setProfileData(null);
         setLastScan(null);
     }, []);
 
@@ -134,10 +173,11 @@ export const useNFC = () => {
         isScanning,
         error,
         lastScan,
-        scanHistory,
+        profileData,
+        loadingProfile,
         startScan,
         stopScan,
         writeToTag,
-        clearHistory
+        clearProfile
     };
 };
