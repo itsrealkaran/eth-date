@@ -234,7 +234,7 @@ export const useNFC = () => {
             const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
             const defaultApiUrl = isDev ? 'http://localhost:3001/etgl' : 'https://arweave.tech/api/etgl';
-            const baseUrl = defaultApiUrl;
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL || defaultApiUrl;
             const apiUrl = `${baseUrl}/set-gender/${profileId}?gender=${gender}`;
 
             console.log('Setting gender:', gender, 'for profile ID:', profileId);
@@ -248,7 +248,8 @@ export const useNFC = () => {
             });
 
             if (!response.ok) {
-                throw new Error(`Failed to set gender: ${response.status} ${response.statusText}`);
+                const errorText = await response.text();
+                throw new Error(`Failed to set gender: ${response.status} ${response.statusText} - ${errorText}`);
             }
 
             const result = await response.json();
