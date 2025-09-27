@@ -138,29 +138,6 @@ export const useNFC = () => {
         console.log('NFC scan stopped');
     }, []);
 
-    // Write to NFC tag
-    const writeToTag = useCallback(async (data) => {
-        if (!isSupported) {
-            setError('NFC is not supported');
-            return false;
-        }
-
-        try {
-            setError(null);
-            const ndef = new NDEFReader();
-
-            await ndef.write({
-                records: [{ recordType: "text", data }]
-            });
-
-            console.log('Successfully wrote to NFC tag');
-            return true;
-        } catch (error) {
-            console.error('NFC write error:', error);
-            setError(error.message || 'Failed to write to NFC tag');
-            return false;
-        }
-    }, [isSupported]);
 
     // Clear profile data
     const clearProfile = useCallback(() => {
@@ -177,7 +154,6 @@ export const useNFC = () => {
         loadingProfile,
         startScan,
         stopScan,
-        writeToTag,
         clearProfile
     };
 };
