@@ -169,11 +169,33 @@ export const useLocation = (profileData = null) => {
         // Connect to WebSocket
         connectWebSocket();
 
+        // Check if we're in development mode
+        const isDev = process.env.NODE_ENV === 'development' ||
+            process.env.DEV === 'true' ||
+            typeof window !== 'undefined' && window.location.hostname === 'localhost';
+
+        // More lenient options for desktop environments
         const options = {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 5000
+            enableHighAccuracy: false, // Less strict for desktop
+            timeout: 30000, // Longer timeout for desktop
+            maximumAge: 60000 // Allow older cached positions
         };
+
+        // If in development, use mock location
+        if (isDev) {
+            console.log('Development mode: Using mock location');
+            // Mock location (San Francisco coordinates)
+            const mockLocation = {
+                latitude: 37.7749 + (Math.random() - 0.5) * 0.01, // Add some randomness
+                longitude: -122.4194 + (Math.random() - 0.5) * 0.01,
+                accuracy: 50,
+                timestamp: Date.now()
+            };
+
+            setLocation(mockLocation);
+            sendLocationUpdate(mockLocation);
+            return;
+        }
 
         const successCallback = (position) => {
             const newLocation = {
@@ -190,20 +212,65 @@ export const useLocation = (profileData = null) => {
         const errorCallback = (error) => {
             console.error('Geolocation error:', error);
             let errorMessage = 'Failed to get location';
+            let suggestion = '';
 
             switch (error.code) {
                 case error.PERMISSION_DENIED:
-                    errorMessage = 'Location access denied by user';
+                    errorMessage = 'Location access denied';
+                    suggestion = 'Please allow location access in your browser settings and refresh the page.';
                     break;
                 case error.POSITION_UNAVAILABLE:
-                    errorMessage = 'Location information unavailable';
+                    errorMessage = 'Location unavailable on this device';
+                    suggestion = 'Desktop computers may not have GPS. Try using a mobile device or enable location services.';
                     break;
                 case error.TIMEOUT:
                     errorMessage = 'Location request timed out';
+                    suggestion = 'Location services may be slow. Try refreshing the page or check your internet connection.';
                     break;
             }
 
-            setError(errorMessage);
+            // For desktop users, provide additional context
+            const isDesktop = !('ontouchstart' in window) && !navigator.userAgentData?.mobile;
+            if (isDesktop && error.code === error.POSITION_UNAVAILABLE) {
+                suggestion = 'Desktop computers typically don\'t have GPS. For the best experience, use a mobile device with location services enabled.';
+            }
+
+            setError(`${errorMessage}. ${suggestion}`);
+
+            // Try IP-based geolocation as fallback for desktop
+            if (error.code === error.POSITION_UNAVAILABLE) {
+                console.log('Attempting IP-based geolocation fallback...');
+                tryIPGeolocation();
+            }
+        };
+
+        // Fallback IP-based geolocation
+        const tryIPGeolocation = async () => {
+            try {
+                console.log('Trying IP geolocation...');
+                const response = await fetch('https://ipapi.co/json/');
+                const data = await response.json();
+
+                if (data.latitude && data.longitude) {
+                    const fallbackLocation = {
+                        latitude: parseFloat(data.latitude),
+                        longitude: parseFloat(data.longitude),
+                        accuracy: 10000, // IP geolocation is less accurate
+                        timestamp: Date.now(),
+                        source: 'ip'
+                    };
+
+                    console.log('IP geolocation successful:', fallbackLocation);
+                    setLocation(fallbackLocation);
+                    sendLocationUpdate(fallbackLocation);
+                    setError(null); // Clear the error since we got a fallback location
+                } else {
+                    console.log('IP geolocation failed: no coordinates returned');
+                }
+            } catch (ipError) {
+                console.error('IP geolocation failed:', ipError);
+                // Keep the original error message
+            }
         };
 
         // Start watching position

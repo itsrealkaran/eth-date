@@ -17,13 +17,21 @@ export default function LocationTracker({ profileData = null }) {
         getArrowRotation
     } = useLocation(profileData);
 
+    // Local state for demo location
+    const [localLocation, setLocalLocation] = useState(null);
+    const [localError, setLocalError] = useState(null);
+
+    // Use local location if set, otherwise use hook location
+    const currentLocation = localLocation || location;
+    const currentError = localError || error;
+
     const [directionInfo, setDirectionInfo] = useState({ male: null, female: null });
 
     // Update direction info when location or selected users change
     useEffect(() => {
         const info = getDirectionInfo();
         setDirectionInfo(info);
-    }, [location, selectedUsers, getDirectionInfo]);
+    }, [currentLocation, selectedUsers, getDirectionInfo]);
 
     // Auto-start tracking when component mounts
     useEffect(() => {
@@ -111,22 +119,42 @@ export default function LocationTracker({ profileData = null }) {
         );
     };
 
-    if (error) {
+    // Show error only if we don't have any location (including fallback)
+    if (currentError && !currentLocation) {
         return (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
                 <div className="flex items-center">
-                    <div className="text-red-600 mr-2">⚠️</div>
+                    <div className="text-yellow-600 mr-2">📍</div>
                     <div>
-                        <div className="font-semibold text-red-800">Location Error</div>
-                        <div className="text-red-700 text-sm">{error}</div>
+                        <div className="font-semibold text-yellow-800">Location Notice</div>
+                        <div className="text-yellow-700 text-sm">{currentError}</div>
                     </div>
                 </div>
-                <button
-                    onClick={startTracking}
-                    className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition-colors"
-                >
-                    Retry
-                </button>
+                <div className="mt-3 flex gap-2">
+                    <button
+                        onClick={startTracking}
+                        className="px-4 py-2 bg-yellow-600 text-white rounded-lg text-sm hover:bg-yellow-700 transition-colors"
+                    >
+                        Retry Location
+                    </button>
+                    <button
+                        onClick={() => {
+                            // Use a default location for demo purposes
+                            const demoLocation = {
+                                latitude: 37.7749,
+                                longitude: -122.4194,
+                                accuracy: 1000,
+                                timestamp: Date.now(),
+                                source: 'demo'
+                            };
+                            setLocalLocation(demoLocation);
+                            setLocalError(null);
+                        }}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors"
+                    >
+                        Use Demo Location
+                    </button>
+                </div>
             </div>
         );
     }
@@ -155,12 +183,30 @@ export default function LocationTracker({ profileData = null }) {
             {/* Location Status */}
             <div className="mb-6">
                 <div className="text-sm text-gray-600 mb-2">Your Location:</div>
-                {location ? (
+                {currentLocation ? (
                     <div className="bg-gray-50 rounded-lg p-3">
                         <div className="text-sm">
-                            <div>📍 {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}</div>
+                            <div className="flex items-center gap-2">
+                                <span>📍 {currentLocation.latitude.toFixed(6)}, {currentLocation.longitude.toFixed(6)}</span>
+                                {currentLocation.source === 'ip' && (
+                                    <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs font-medium">
+                                        IP-based
+                                    </span>
+                                )}
+                                {currentLocation.source === 'demo' && (
+                                    <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">
+                                        Demo
+                                    </span>
+                                )}
+                            </div>
                             <div className="text-gray-500 mt-1">
-                                Accuracy: ±{Math.round(location.accuracy)}m
+                                Accuracy: ±{Math.round(currentLocation.accuracy)}m
+                                {currentLocation.source === 'ip' && (
+                                    <span className="text-orange-600 ml-2">(Approximate location)</span>
+                                )}
+                                {currentLocation.source === 'demo' && (
+                                    <span className="text-blue-600 ml-2">(Demo location)</span>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -191,8 +237,8 @@ export default function LocationTracker({ profileData = null }) {
                         </div>
                         {profileData.user.gender && (
                             <span className={`px-2 py-1 rounded text-xs font-medium ${profileData.user.gender === 'M'
-                                    ? 'bg-blue-100 text-blue-800'
-                                    : 'bg-pink-100 text-pink-800'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-pink-100 text-pink-800'
                                 }`}>
                                 {profileData.user.gender === 'M' ? '♂️ Male' : '♀️ Female'}
                             </span>
@@ -255,7 +301,7 @@ export default function LocationTracker({ profileData = null }) {
             </div>
 
             {/* Compass */}
-            {location && (directionInfo.male || directionInfo.female) && (
+            {currentLocation && (directionInfo.male || directionInfo.female) && (
                 <div className="text-center">
                     <div className="text-sm text-gray-600 mb-3">Compass View</div>
                     <div className="relative w-32 h-32 mx-auto bg-gray-100 rounded-full border-2 border-gray-300">
