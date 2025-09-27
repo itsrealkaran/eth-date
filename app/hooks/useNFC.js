@@ -10,10 +10,22 @@ export const useNFC = () => {
     const [lastScan, setLastScan] = useState(null);
     const [profileData, setProfileData] = useState(null);
     const [loadingProfile, setLoadingProfile] = useState(false);
+    const [showGenderSelection, setShowGenderSelection] = useState(false);
+    const [settingGender, setSettingGender] = useState(false);
+    const [profileId, setProfileId] = useState(null);
 
     // Check NFC support on component mount
     useEffect(() => {
-        if ('NDEFReader' in window) {
+        // Check if we're in development mode
+        const isDev = process.env.NODE_ENV === 'development' ||
+            process.env.DEV === 'true' ||
+            typeof window !== 'undefined' && window.location.hostname === 'localhost';
+
+        if (isDev) {
+            // In development mode, always consider NFC as supported
+            setIsSupported(true);
+            console.log('Development mode: NFC support bypassed');
+        } else if ('NDEFReader' in window) {
             setIsSupported(true);
         } else {
             setIsSupported(false);
@@ -22,12 +34,21 @@ export const useNFC = () => {
     }, []);
 
     // Function to fetch profile data from Arweave API
-    const fetchProfileData = useCallback(async (url) => {
+    const fetchProfileData = useCallback(async (urlOrId) => {
         try {
             setLoadingProfile(true);
             setError(null);
 
-            const apiUrl = `https://arweave.tech/api/etgl/profile?url=${encodeURIComponent(url)}`;
+            // Check if we're in development mode
+            const isDev = process.env.NODE_ENV === 'development' ||
+                process.env.DEV === 'true' ||
+                typeof window !== 'undefined' && window.location.hostname === 'localhost';
+
+            const defaultApiUrl = isDev ? 'http://localhost:3001/etgl' : 'https://arweave.tech/api/etgl';
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL || defaultApiUrl;
+            const apiUrl = urlOrId.startsWith("https://") ? `${baseUrl}/profile?url=${encodeURIComponent(urlOrId)}` : `${baseUrl}/profile/${encodeURIComponent(urlOrId)}`;
+            console.log('Fetching from:', apiUrl, isDev ? '(dev mode)' : '(production)');
+
             const response = await fetch(apiUrl);
 
             if (!response.ok) {
@@ -37,6 +58,22 @@ export const useNFC = () => {
             const data = await response.json();
             setProfileData(data);
             console.log('Profile data received:', data);
+
+            // Store the profile ID for later use (extract from URL or use directly)
+            let id = urlOrId;
+            if (urlOrId.startsWith("https://")) {
+                // Extract ID from ETHGlobal URL pattern: https://ethglobal.com/connect/{id}
+                const urlParts = urlOrId.split('/');
+                id = urlParts[urlParts.length - 1];
+            }
+            setProfileId(id);
+            console.log('Profile ID stored:', id);
+
+            // Check if gender is missing and show gender selection UI
+            if (data && data.user && !data.user.gender) {
+                console.log('Gender not set for user, showing gender selection');
+                setShowGenderSelection(true);
+            }
         } catch (error) {
             console.error('Error fetching profile data:', error);
             setError(`Failed to fetch profile data: ${error.message}`);
@@ -57,6 +94,47 @@ export const useNFC = () => {
             setError(null);
             setIsScanning(true);
 
+            // Check if we're in development mode
+            const isDev = process.env.NODE_ENV === 'development' ||
+                process.env.DEV === 'true' ||
+                typeof window !== 'undefined' && window.location.hostname === 'localhost';
+
+            if (isDev) {
+                // Development mode: simulate NFC scanning with mock data
+                console.log('Development mode: Mock NFC scanning started');
+
+                // Simulate a delay and then "scan" a mock profile
+                setTimeout(async () => {
+                    console.log('Development mode: Simulating NFC tag detection');
+
+                    // Mock ETHGlobal profile URLs for testing (use localhost in dev)
+                    const demoId = [
+                        '1d7s7pl',
+                    ];
+
+                    const randomUrl = demoId[Math.floor(Math.random() * demoId.length)];
+
+                    const mockScanData = {
+                        id: Date.now(),
+                        serialNumber: 'DEV_MOCK_' + Math.random().toString(36).substr(2, 9),
+                        timestamp: new Date().toISOString(),
+                        records: [{
+                            recordType: 'url',
+                            mediaType: null,
+                            id: '',
+                            data: randomUrl
+                        }]
+                    };
+
+                    setLastScan(mockScanData);
+                    console.log('Development mode: Mock URL detected:', randomUrl);
+                    await fetchProfileData(randomUrl);
+                }, 2000); // 2 second delay to simulate scanning
+
+                return;
+            }
+
+            // Production mode: use real NFC
             const ndef = new NDEFReader();
 
             // Request permission to use NFC
@@ -143,7 +221,66 @@ export const useNFC = () => {
     const clearProfile = useCallback(() => {
         setProfileData(null);
         setLastScan(null);
+        setShowGenderSelection(false);
+        setProfileId(null);
     }, []);
+
+    // Set gender for user
+    const setGender = useCallback(async (gender) => {
+        if (!profileData || !profileData.user || !profileId) {
+            setError('No profile data or profile ID available');
+            return;
+        }
+
+        try {
+            setSettingGender(true);
+            setError(null);
+
+            // Check if we're in development mode
+            const isDev = process.env.NODE_ENV === 'development' ||
+                process.env.DEV === 'true' ||
+                typeof window !== 'undefined' && window.location.hostname === 'localhost';
+
+            const defaultApiUrl = isDev ? 'http://localhost:3001/etgl' : 'https://arweave.tech/api/etgl';
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL || defaultApiUrl;
+            const apiUrl = `${baseUrl}/set-gender/${profileId}?gender=${gender}`;
+
+            console.log('Setting gender:', gender, 'for profile ID:', profileId);
+            console.log('API URL:', apiUrl);
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to set gender: ${response.status} ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            console.log('Gender set successfully:', result);
+
+            // Update local profile data
+            setProfileData(prev => ({
+                ...prev,
+                user: {
+                    ...prev.user,
+                    gender: gender
+                }
+            }));
+
+            // Hide gender selection UI
+            setShowGenderSelection(false);
+
+        } catch (error) {
+            console.error('Error setting gender:', error);
+            setError(`Failed to set gender: ${error.message}`);
+        } finally {
+            setSettingGender(false);
+        }
+    }, [profileData, profileId]);
 
     return {
         isSupported,
@@ -152,8 +289,11 @@ export const useNFC = () => {
         lastScan,
         profileData,
         loadingProfile,
+        showGenderSelection,
+        settingGender,
         startScan,
         stopScan,
-        clearProfile
+        clearProfile,
+        setGender
     };
 };
