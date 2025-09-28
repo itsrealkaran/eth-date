@@ -61,7 +61,12 @@ export default function HomePage() {
       localStorage.setItem("worldId", demoWorldId);
 
       try {
-        const profile = await getProfileByWorldID(demoWorldId);
+        const response = await getProfileByWorldID(demoWorldId);
+        console.log("API Response:", response);
+
+        // Handle the nested profile structure
+        const profile = response.profile || response;
+
         if (profile && profile.user) {
           setUserProfile(profile);
           // If profile has gender, go directly to explore
@@ -77,6 +82,7 @@ export default function HomePage() {
         console.log(
           "Profile not found for demo-user-123, proceeding to NFC detection"
         );
+        console.error("Profile fetch error:", profileError);
       }
 
       // Profile not found - show NFC detection
