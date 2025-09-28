@@ -117,7 +117,7 @@ export const useNFC = () => {
           console.log("Development mode: Simulating NFC tag detection");
 
           // Mock ETHGlobal profile URLs for testing (use localhost in dev)
-          const demoId = ["1d7s7pl"];
+          const demoId = ["2qj3oud"];
 
           const randomUrl = demoId[Math.floor(Math.random() * demoId.length)];
 
