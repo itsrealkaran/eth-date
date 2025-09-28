@@ -1,6 +1,8 @@
 "use client";
 
+import React, { useEffect, useState } from "react";
 import { useNFC } from "@/hooks/use-nfc";
+import { getProfileByWorldID, setUserGender } from "@/lib/api";
 
 export default function NFCDetectionPage() {
   const {
@@ -15,6 +17,101 @@ export default function NFCDetectionPage() {
     clearProfile,
     setGender,
   } = useNFC();
+
+  // Get WorldID from URL parameters
+  const getWorldIdFromUrl = () => {
+    if (typeof window !== "undefined" && window.location.search) {
+      return new URLSearchParams(window.location.search).get("worldid");
+    }
+    return null;
+  };
+
+  // State for WorldID profile
+  const [worldIdProfile, setWorldIdProfile] = useState(null);
+  const [loadingWorldIdProfile, setLoadingWorldIdProfile] = useState(false);
+  const [customSettingGender, setCustomSettingGender] = useState(false);
+
+  // Fetch profile using WorldID on component mount
+  useEffect(() => {
+    const worldId = getWorldIdFromUrl();
+    if (worldId && !worldIdProfile) {
+      // Fetch profile using WorldID
+      const fetchProfileByWorldId = async () => {
+        try {
+          setLoadingWorldIdProfile(true);
+          const profile = await getProfileByWorldID(worldId);
+          setWorldIdProfile(profile);
+          console.log("Profile fetched by WorldID:", profile);
+        } catch (error) {
+          console.error("Failed to fetch profile by WorldID:", error);
+        } finally {
+          setLoadingWorldIdProfile(false);
+        }
+      };
+
+      fetchProfileByWorldId();
+    }
+  }, [worldIdProfile]);
+
+  // Custom gender setting function with WorldID
+  const setGenderWithWorldId = async (gender, worldId) => {
+    if (!profileData || !profileData.user) {
+      console.error("No profile data available");
+      return;
+    }
+
+    try {
+      setCustomSettingGender(true);
+
+      // Extract profile ID from the profile data
+      const profileId = profileData.uuid || profileData.user.uuid;
+
+      if (!profileId) {
+        throw new Error("No profile ID found");
+      }
+
+      console.log("Setting gender with WorldID:", {
+        gender,
+        worldId,
+        profileId,
+      });
+
+      // Call the API with WorldID
+      const result = await setUserGender(profileId, gender, worldId);
+      console.log("Gender set successfully:", result);
+
+      // Update local profile data
+      setWorldIdProfile((prev) => ({
+        ...prev,
+        user: {
+          ...prev.user,
+          gender: gender,
+        },
+      }));
+
+      // Send success message back to parent window
+      if (window.opener) {
+        window.opener.postMessage(
+          {
+            type: "NFC_PROFILE_CONFIRMED",
+            profile: {
+              ...worldIdProfile,
+              user: {
+                ...worldIdProfile.user,
+                gender: gender,
+              },
+            },
+          },
+          "*"
+        );
+        window.close();
+      }
+    } catch (error) {
+      console.error("Error setting gender with WorldID:", error);
+    } finally {
+      setCustomSettingGender(false);
+    }
+  };
 
   // Not supported screen
   if (!isSupported) {
@@ -55,22 +152,30 @@ export default function NFCDetectionPage() {
   }
 
   // Gender selection screen
-  if (showGenderSelection && profileData) {
+  if (
+    (showGenderSelection && profileData) ||
+    (worldIdProfile && !worldIdProfile.user.gender)
+  ) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4">
         <div className="max-w-sm mx-auto pt-8">
           <div className="bg-white rounded-2xl shadow-xl p-6 text-center">
             {/* Profile info */}
             <div className="mb-6">
-              {profileData.user.avatar?.fullUrl && (
+              {(profileData?.user?.avatar?.fullUrl ||
+                worldIdProfile?.user?.avatar?.fullUrl) && (
                 <img
-                  src={profileData.user.avatar.fullUrl}
-                  alt={profileData.user.name}
+                  src={
+                    profileData?.user?.avatar?.fullUrl ||
+                    worldIdProfile?.user?.avatar?.fullUrl
+                  }
+                  alt={profileData?.user?.name || worldIdProfile?.user?.name}
                   className="w-20 h-20 rounded-full object-cover mx-auto mb-4 border-4 border-white shadow-lg"
                 />
               )}
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Welcome, {profileData.user.name}!
+                Welcome, {profileData?.user?.name || worldIdProfile?.user?.name}
+                !
               </h2>
               <p className="text-lg text-gray-600 mb-4">
                 Please select your gender to complete your profile
@@ -80,15 +185,23 @@ export default function NFCDetectionPage() {
             {/* Gender selection buttons */}
             <div className="space-y-4 mb-6">
               <button
-                onClick={() => setGender("M")}
-                disabled={settingGender}
+                onClick={() => {
+                  const worldId = getWorldIdFromUrl();
+                  if (worldId) {
+                    // Use custom gender setting with WorldID
+                    setGenderWithWorldId("M", worldId);
+                  } else {
+                    setGender("M");
+                  }
+                }}
+                disabled={settingGender || customSettingGender}
                 className={`w-full px-8 py-6 rounded-2xl text-xl font-bold transition-all duration-200 shadow-lg ${
                   settingGender
                     ? "bg-gray-400 text-gray-600 cursor-not-allowed"
                     : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-xl transform hover:scale-105"
                 }`}
               >
-                {settingGender ? (
+                {settingGender || customSettingGender ? (
                   <div className="flex items-center justify-center gap-3">
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                     <span>Setting...</span>
@@ -102,15 +215,23 @@ export default function NFCDetectionPage() {
               </button>
 
               <button
-                onClick={() => setGender("F")}
-                disabled={settingGender}
+                onClick={() => {
+                  const worldId = getWorldIdFromUrl();
+                  if (worldId) {
+                    // Use custom gender setting with WorldID
+                    setGenderWithWorldId("F", worldId);
+                  } else {
+                    setGender("F");
+                  }
+                }}
+                disabled={settingGender || customSettingGender}
                 className={`w-full px-8 py-6 rounded-2xl text-xl font-bold transition-all duration-200 shadow-lg ${
                   settingGender
                     ? "bg-gray-400 text-gray-600 cursor-not-allowed"
                     : "bg-pink-600 text-white hover:bg-pink-700 hover:shadow-xl transform hover:scale-105"
                 }`}
               >
-                {settingGender ? (
+                {settingGender || customSettingGender ? (
                   <div className="flex items-center justify-center gap-3">
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                     <span>Setting...</span>
@@ -139,7 +260,10 @@ export default function NFCDetectionPage() {
   }
 
   // Profile display screen with confirmation
-  if (profileData && profileData.user) {
+  if (
+    (profileData && profileData.user) ||
+    (worldIdProfile && worldIdProfile.user)
+  ) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
         <div className="max-w-sm mx-auto">
@@ -147,61 +271,73 @@ export default function NFCDetectionPage() {
           <div className="bg-white rounded-2xl shadow-xl p-6">
             {/* Avatar and Name */}
             <div className="text-center mb-6">
-              {profileData.user.avatar?.fullUrl && (
+              {(profileData?.user?.avatar?.fullUrl ||
+                worldIdProfile?.user?.avatar?.fullUrl) && (
                 <img
-                  src={profileData.user.avatar.fullUrl}
-                  alt={profileData.user.name}
+                  src={
+                    profileData?.user?.avatar?.fullUrl ||
+                    worldIdProfile?.user?.avatar?.fullUrl
+                  }
+                  alt={profileData?.user?.name || worldIdProfile?.user?.name}
                   className="w-24 h-24 rounded-full object-cover mx-auto mb-4 border-4 border-white shadow-lg"
                 />
               )}
               <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                {profileData.user.name}
+                {profileData?.user?.name || worldIdProfile?.user?.name}
               </h1>
-              {profileData.user.title && (
+              {(profileData?.user?.title || worldIdProfile?.user?.title) && (
                 <p className="text-lg text-blue-700 font-medium mb-3">
-                  {profileData.user.title}
+                  {profileData?.user?.title || worldIdProfile?.user?.title}
                 </p>
               )}
             </div>
 
             {/* Bio */}
-            {profileData.user.bio && (
+            {(profileData?.user?.bio || worldIdProfile?.user?.bio) && (
               <div className="mb-6">
                 <h3 className="text-base font-semibold text-gray-800 mb-2">
                   About
                 </h3>
                 <p className="text-gray-700 leading-relaxed text-sm bg-gray-50 p-3 rounded-lg">
-                  {profileData.user.bio}
+                  {profileData?.user?.bio || worldIdProfile?.user?.bio}
                 </p>
               </div>
             )}
 
             {/* Badges */}
-            {profileData.attendeeTypes &&
-              profileData.attendeeTypes.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="text-base font-semibold text-gray-800 mb-3">
-                    Badges
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {profileData.attendeeTypes.map((type, index) => (
-                      <span
-                        key={index}
-                        className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium border border-blue-200"
-                      >
-                        {type}
-                      </span>
-                    ))}
-                  </div>
+            {((profileData?.attendeeTypes &&
+              profileData.attendeeTypes.length > 0) ||
+              (worldIdProfile?.attendeeTypes &&
+                worldIdProfile.attendeeTypes.length > 0)) && (
+              <div className="mb-6">
+                <h3 className="text-base font-semibold text-gray-800 mb-3">
+                  Badges
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {(
+                    profileData?.attendeeTypes ||
+                    worldIdProfile?.attendeeTypes ||
+                    []
+                  ).map((type, index) => (
+                    <span
+                      key={index}
+                      className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium border border-blue-200"
+                    >
+                      {type}
+                    </span>
+                  ))}
                 </div>
-              )}
+              </div>
+            )}
 
             {/* Event Info */}
-            {profileData.event && (
+            {(profileData?.event || worldIdProfile?.event) && (
               <div className="pt-4 border-t border-gray-200 mb-6">
                 <div className="flex items-center justify-center gap-2 text-gray-600">
                   <span className="font-medium text-sm">Event:</span>
-                  <span className="text-base">{profileData.event.name}</span>
+                  <span className="text-base">
+                    {profileData?.event?.name || worldIdProfile?.event?.name}
+                  </span>
                 </div>
               </div>
             )}
@@ -214,7 +350,7 @@ export default function NFCDetectionPage() {
                     window.opener.postMessage(
                       {
                         type: "NFC_PROFILE_CONFIRMED",
-                        profile: profileData,
+                        profile: profileData || worldIdProfile,
                       },
                       "*"
                     );
