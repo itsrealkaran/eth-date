@@ -215,6 +215,7 @@ export default function HomePage() {
         <ExploreCanvas
           userGender={userGender}
           userProfile={userProfile}
+          userWorldId={userProfile?.user?.worldid || "demo-user-123"}
           onToggleLeaderboard={toggleLeaderboard}
           showLeaderboard={showLeaderboard}
         />
