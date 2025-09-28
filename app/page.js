@@ -54,33 +54,32 @@ export default function HomePage() {
       setLoading(true);
       setError(null);
 
-      // For now, we'll always show the NFC detection screen
-      // In a real implementation, you would check for a stored WorldID or session
-      // and try to fetch the profile using that WorldID
+      // Always use demo-user-123 as the WorldID
+      const demoWorldId = "demo-user-123";
 
-      // Example: Check localStorage for stored WorldID
-      const storedWorldId = localStorage.getItem("worldId");
+      // Store the WorldID for this session
+      localStorage.setItem("worldId", demoWorldId);
 
-      if (storedWorldId) {
-        try {
-          const profile = await getProfileByWorldID(storedWorldId);
-          if (profile && profile.user) {
-            setUserProfile(profile);
-            // If profile has gender, go directly to explore
-            if (profile.user.gender) {
-              setUserGender(profile.user.gender === "M" ? "male" : "female");
-              setCurrentScreen("explore");
-            } else {
-              setCurrentScreen("gender");
-            }
-            return;
+      try {
+        const profile = await getProfileByWorldID(demoWorldId);
+        if (profile && profile.user) {
+          setUserProfile(profile);
+          // If profile has gender, go directly to explore
+          if (profile.user.gender) {
+            setUserGender(profile.user.gender === "M" ? "male" : "female");
+            setCurrentScreen("explore");
+          } else {
+            setCurrentScreen("gender");
           }
-        } catch (profileError) {
-          console.log("No existing profile found, proceeding to NFC detection");
+          return;
         }
+      } catch (profileError) {
+        console.log(
+          "Profile not found for demo-user-123, proceeding to NFC detection"
+        );
       }
 
-      // No stored WorldID or profile not found - show NFC detection
+      // Profile not found - show NFC detection
       setCurrentScreen("nfc-required");
     } catch (error) {
       console.error("Error checking account status:", error);
@@ -92,11 +91,11 @@ export default function HomePage() {
   };
 
   const openNFCDetection = () => {
-    // Use fixed demo WorldID for now
+    // Use fixed demo WorldID
     const demoWorldId = "demo-user-123";
     const worldIdParam = `?worldid=${demoWorldId}`;
 
-    // Store the WorldID for this session
+    // Store the WorldID for this session (already stored in checkAccountStatus)
     localStorage.setItem("worldId", demoWorldId);
 
     const nfcWindow = window.open(
@@ -215,7 +214,7 @@ export default function HomePage() {
         <ExploreCanvas
           userGender={userGender}
           userProfile={userProfile}
-          userWorldId={userProfile?.user?.worldid || "demo-user-123"}
+          userWorldId="demo-user-123"
           onToggleLeaderboard={toggleLeaderboard}
           showLeaderboard={showLeaderboard}
         />

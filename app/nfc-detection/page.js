@@ -158,7 +158,7 @@ export default function NFCDetectionPage() {
   // Gender selection screen
   if (
     (showGenderSelection && profileData) ||
-    (worldIdProfile && !worldIdProfile.user.gender)
+    (worldIdProfile && worldIdProfile.user && !worldIdProfile.user.gender)
   ) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4">
