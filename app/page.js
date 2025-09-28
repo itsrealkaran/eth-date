@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import GenderSelection from "@/components/gender-selection";
 import ExploreCanvas from "@/components/explore-canvas";
 import Leaderboard from "@/components/leaderboard";
+import WorldVerification from "@/components/world-verification";
 import { getProfileByWorldID } from "@/lib/api";
 
 export default function HomePage() {
@@ -13,6 +14,8 @@ export default function HomePage() {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showWorldVerification, setShowWorldVerification] = useState(false);
+  const [isWorldVerified, setIsWorldVerified] = useState(false);
 
   useEffect(() => {
     checkAccountStatus();
@@ -126,6 +129,23 @@ export default function HomePage() {
     setShowLeaderboard(!showLeaderboard);
   };
 
+  const handleWorldVerificationSuccess = (data) => {
+    console.log('World ID verification successful:', data);
+    setIsWorldVerified(true);
+    setShowWorldVerification(false);
+    // Proceed with NFC detection after successful verification
+    openNFCDetection();
+  };
+
+  const handleWorldVerificationError = (error) => {
+    console.error('World ID verification failed:', error);
+    setError(`Verification failed: ${error}`);
+  };
+
+  const startVerificationFlow = () => {
+    setShowWorldVerification(true);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
@@ -184,11 +204,20 @@ export default function HomePage() {
 
             <div className="space-y-4">
               <button
-                onClick={openNFCDetection}
+                onClick={startVerificationFlow}
                 className="w-full px-8 py-4 bg-blue-600 text-white rounded-lg text-xl font-semibold hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl transform hover:scale-105"
               >
-                Scan NFC Tag
+                {isWorldVerified ? 'Scan NFC Tag' : 'Verify with World ID'}
               </button>
+
+              {isWorldVerified && (
+                <button
+                  onClick={openNFCDetection}
+                  className="w-full px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors shadow-lg hover:shadow-xl transform hover:scale-105"
+                >
+                  Continue to NFC Scan
+                </button>
+              )}
 
               <button
                 onClick={checkAccountStatus}
@@ -232,6 +261,17 @@ export default function HomePage() {
           isVisible={showLeaderboard}
         />
       )}
+
+      {showWorldVerification && (
+        <WorldVerification
+          onVerificationSuccess={handleWorldVerificationSuccess}
+          onVerificationError={handleWorldVerificationError}
+          action="rizzler-verification"
+          signal="rizzler-app"
+          verificationLevel="orb"
+        />
+      )}
     </div>
   );
 }
+
