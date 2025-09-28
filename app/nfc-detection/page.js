@@ -288,6 +288,19 @@ export default function NFCDetectionPage() {
                   </span>
                 )}
             </div>
+            {/* WorldID Display */}
+            {typeof window !== "undefined" && window.location.search && (
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-700 font-medium mb-1">
+                  WorldID Connected
+                </p>
+                <p className="text-xs text-blue-600 break-all">
+                  {new URLSearchParams(window.location.search).get("worldid") ||
+                    "No WorldID provided"}
+                </p>
+              </div>
+            )}
+
             <p className="text-lg text-gray-600 mb-6">
               {typeof window !== "undefined" &&
               window.location.hostname === "localhost"
@@ -332,22 +345,38 @@ export default function NFCDetectionPage() {
             </p>
           )}
 
-          <button
-            onClick={() => {
-              if (window.opener) {
-                window.opener.postMessage(
-                  {
-                    type: "NFC_DETECTION_CANCELLED",
-                  },
-                  "*"
-                );
-              }
-              window.close();
-            }}
-            className="w-full px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
-          >
-            Close
-          </button>
+          <div className="space-y-3">
+            <button
+              onClick={() => {
+                if (window.opener) {
+                  window.opener.postMessage(
+                    {
+                      type: "NFC_DETECTION_CANCELLED",
+                    },
+                    "*"
+                  );
+                }
+                window.close();
+              }}
+              className="w-full px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+            >
+              Close
+            </button>
+
+            {/* Open WorldID Tab Button */}
+            <button
+              onClick={() => {
+                const worldId =
+                  new URLSearchParams(window.location.search).get("worldid") ||
+                  "demo-user-123";
+                const worldIdUrl = `https://worldid.com/profile/${worldId}`;
+                window.open(worldIdUrl, "_blank");
+              }}
+              className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+            >
+              Open WorldID Profile
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -64,8 +64,12 @@ export default function HomePage() {
   };
 
   const openNFCDetection = () => {
+    // Generate a demo WorldID or use a real one
+    const demoWorldId = "demo-user-" + Math.random().toString(36).substr(2, 9);
+    const worldIdParam = `?worldid=${demoWorldId}`;
+
     const nfcWindow = window.open(
-      "/nfc-detection",
+      `/nfc-detection${worldIdParam}`,
       "nfc-detection",
       "width=400,height=600,scrollbars=yes,resizable=yes"
     );
