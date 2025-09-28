@@ -38,6 +38,7 @@ export default function ExploreCanvas({ userGender, onToggleLeaderboard, showLea
   const [nfcError, setNfcError] = useState(null)
   const [pointsEarned, setPointsEarned] = useState(0)
   const [totalPoints, setTotalPoints] = useState(0)
+  const [retryCount, setRetryCount] = useState(0)
 
   // Request location permission
   const requestLocationPermission = async () => {
@@ -105,6 +106,7 @@ export default function ExploreCanvas({ userGender, onToggleLeaderboard, showLea
       if (targetData.coordinates) {
         setTargetLocation(targetData.coordinates)
         setTargetProfile(targetData.targetProfile)
+        setRetryCount(0) // Reset retry count on success
         
         // Calculate distance if we have user location
         if (userLocation) {
@@ -119,10 +121,26 @@ export default function ExploreCanvas({ userGender, onToggleLeaderboard, showLea
       }
     } catch (error) {
       console.error("Error fetching target:", error)
-      setTargetError("Failed to fetch target information")
+      
+      // Handle specific error cases
+      if (error.message && error.message.includes("No female target currently selected")) {
+        setTargetError("No female target is currently selected. Please wait for a new target to be assigned.")
+      } else if (error.message && error.message.includes("No male target currently selected")) {
+        setTargetError("No male target is currently selected. Please wait for a new target to be assigned.")
+      } else if (error.message && error.message.includes("Target location not available")) {
+        setTargetError("Target location is not available. The target user hasn't shared their location yet.")
+      } else {
+        setTargetError("Failed to fetch target information. Please try again later.")
+      }
     } finally {
       setIsLoadingTarget(false)
     }
+  }
+
+  // Retry fetching target
+  const retryFetchTarget = () => {
+    setRetryCount(prev => prev + 1)
+    fetchTarget()
   }
 
   // Calculate distance between two coordinates
@@ -412,6 +430,12 @@ export default function ExploreCanvas({ userGender, onToggleLeaderboard, showLea
       ctx.strokeStyle = "#ffffff"
       ctx.lineWidth = 2
       ctx.stroke()
+      
+      // Show "No Target" text
+      ctx.fillStyle = "rgba(148, 163, 184, 0.8)"
+      ctx.font = "12px sans-serif"
+      ctx.textAlign = "center"
+      ctx.fillText("No Target", centerX, centerY + 40)
     }
   }
 
@@ -830,8 +854,19 @@ export default function ExploreCanvas({ userGender, onToggleLeaderboard, showLea
       )}
 
       {targetError && (
-        <div className="absolute top-16 left-4 right-4 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-          <p className="text-xs text-yellow-600 dark:text-yellow-400 text-center">{targetError}</p>
+        <div className="absolute top-16 left-4 right-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+          <div className="text-center">
+            <p className="text-xs text-yellow-600 dark:text-yellow-400 mb-2">{targetError}</p>
+            <Button
+              onClick={retryFetchTarget}
+              size="sm"
+              variant="outline"
+              className="text-xs h-6 px-2"
+              disabled={isLoadingTarget}
+            >
+              {isLoadingTarget ? "Retrying..." : "Retry"}
+            </Button>
+          </div>
         </div>
       )}
 
