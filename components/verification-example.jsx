@@ -33,33 +33,33 @@ export default function VerificationExample() {
         />
       </div>
 
-      {/* Example 2: Custom verification with signal */}
+      {/* Example 2: Any verification level accepted */}
       <div className="p-4 border rounded-lg">
-        <h3 className="text-lg font-semibold mb-2">Custom Verification</h3>
+        <h3 className="text-lg font-semibold mb-2">Flexible Verification</h3>
         <WorldVerification
           onVerificationSuccess={handleVerificationSuccess}
           onVerificationError={handleVerificationError}
-          action="custom-action"
+          action="flexible-action"
           signal="user-specific-data"
-          verificationLevel="orb"
+          verificationLevel={null}
         >
           <button className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
-            Verify for Premium Access
+            Verify (Orb or Device)
           </button>
         </WorldVerification>
       </div>
 
-      {/* Example 3: Device-level verification */}
+      {/* Example 3: Orb-only verification */}
       <div className="p-4 border rounded-lg">
-        <h3 className="text-lg font-semibold mb-2">Device Verification</h3>
+        <h3 className="text-lg font-semibold mb-2">Orb Verification Only</h3>
         <WorldVerification
           onVerificationSuccess={handleVerificationSuccess}
           onVerificationError={handleVerificationError}
-          action="device-verification"
-          verificationLevel="device"
+          action="orb-only-action"
+          verificationLevel="orb"
         >
           <button className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
-            Verify Device
+            Verify with Orb Only
           </button>
         </WorldVerification>
       </div>

@@ -12,7 +12,7 @@ export const useWorldVerification = () => {
   const [isVerified, setIsVerified] = useState(false);
 
   const verifyUser = useCallback(
-    async (action, signal = null, verificationLevel = "orb") => {
+    async (action, signal = null, verificationLevel = null) => {
       if (!MiniKit.isInstalled()) {
         setVerificationError(
           "World App is not installed. Please install World App to continue."
@@ -27,7 +27,7 @@ export const useWorldVerification = () => {
         const verifyPayload = {
           action,
           signal,
-          verification_level: verificationLevel,
+          ...(verificationLevel && { verification_level: verificationLevel }),
         };
 
         // World App will open a drawer prompting the user to confirm the operation

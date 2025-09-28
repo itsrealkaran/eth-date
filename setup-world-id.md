@@ -47,11 +47,12 @@ import {
 2. Create a new incognito action with ID: `rizzler-verification`
 3. Set the action name and description as needed
 4. Configure any limits or restrictions
+5. **Note**: The app accepts both Orb and Device verification levels for maximum accessibility
 
 ## 6. Test the Integration
 
 1. Make sure World App is installed on your device
-2. Run your Next.js app: `npm run dev`
+2. Run your Next.js app: `pnpm run dev`
 3. Navigate to the app and try the verification flow
 4. The World App should open a drawer for verification
 

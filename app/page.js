@@ -130,7 +130,7 @@ export default function HomePage() {
   };
 
   const handleWorldVerificationSuccess = (data) => {
-    console.log('World ID verification successful:', data);
+    console.log("World ID verification successful:", data);
     setIsWorldVerified(true);
     setShowWorldVerification(false);
     // Proceed with NFC detection after successful verification
@@ -138,7 +138,7 @@ export default function HomePage() {
   };
 
   const handleWorldVerificationError = (error) => {
-    console.error('World ID verification failed:', error);
+    console.error("World ID verification failed:", error);
     setError(`Verification failed: ${error}`);
   };
 
@@ -207,7 +207,7 @@ export default function HomePage() {
                 onClick={startVerificationFlow}
                 className="w-full px-8 py-4 bg-blue-600 text-white rounded-lg text-xl font-semibold hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl transform hover:scale-105"
               >
-                {isWorldVerified ? 'Scan NFC Tag' : 'Verify with World ID'}
+                {isWorldVerified ? "Scan NFC Tag" : "Verify with World ID"}
               </button>
 
               {isWorldVerified && (
@@ -268,10 +268,9 @@ export default function HomePage() {
           onVerificationError={handleWorldVerificationError}
           action="rizzler-verification"
           signal="rizzler-app"
-          verificationLevel="orb"
+          verificationLevel={null}
         />
       )}
     </div>
   );
 }
-

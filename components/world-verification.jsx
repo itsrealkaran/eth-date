@@ -6,7 +6,7 @@ export default function WorldVerification({
   onVerificationError,
   action = 'rizzler-verification',
   signal = null,
-  verificationLevel = 'orb',
+  verificationLevel = null,
   className = '',
   children
 }) {
@@ -78,7 +78,7 @@ export default function WorldVerification({
           
           <p className="text-gray-600 mb-6">
             {isWorldAppInstalled 
-              ? "Please open World App to verify your identity and continue."
+              ? "Please open World App to verify your identity and continue. Both Orb and Device verification are accepted."
               : "World App is required for verification. Please install World App first."
             }
           </p>
@@ -132,7 +132,8 @@ export default function WorldVerification({
 
           <div className="mt-6 pt-6 border-t border-gray-200">
             <p className="text-sm text-gray-500">
-              World ID verification ensures you're a unique human and prevents bot abuse.
+              World ID verification ensures you're a unique human and prevents bot abuse. 
+              Both Orb (higher security) and Device (convenient) verification methods are accepted.
             </p>
           </div>
         </div>
