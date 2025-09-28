@@ -216,6 +216,68 @@ export default function ExploreCanvas({ userGender, onToggleLeaderboard, showLea
     }
   }, [userLocation, targetLocation])
 
+  // Check proximity to target
+  useEffect(() => {
+    if (userLocation && targetLocation) {
+      const distance = calculateDistance(
+        userLocation.latitude,
+        userLocation.longitude,
+        targetLocation.latitude,
+        targetLocation.longitude
+      )
+      
+      setProximityDistance(distance)
+      
+      // Consider in proximity if within 100 meters
+      const inProximity = distance <= 100
+      setIsInProximity(inProximity)
+      setShowNFCButton(inProximity)
+      
+      // Update distance to target for display
+      setDistanceToTarget(distance)
+    }
+  }, [userLocation, targetLocation])
+
+  // Open NFC scan page
+  const openNFCScan = () => {
+    if (!userWorldId || !targetProfile) return
+
+    const params = new URLSearchParams({
+      userId: userWorldId,
+      targetName: encodeURIComponent(targetProfile.name || 'Target'),
+      targetAvatar: targetProfile.avatar ? encodeURIComponent(targetProfile.avatar) : ''
+    })
+
+    const nfcUrl = `/nfc-scan?${params.toString()}`
+    
+    // Open in new window/tab for Chrome mobile
+    const nfcWindow = window.open(
+      nfcUrl,
+      "nfc-scan",
+      "width=400,height=600,scrollbars=yes,resizable=yes"
+    )
+
+    if (!nfcWindow) {
+      setNfcError("Popup blocked. Please allow popups for this site and try again.")
+    }
+  }
+
+  // Handle NFC scan result from popup
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (event.data.type === "NFC_SCAN_RESULT") {
+        setNfcScanResult(event.data.result)
+        if (event.data.result.success) {
+          setPointsEarned(event.data.result.pointsEarned)
+          setTotalPoints(event.data.result.totalPoints)
+        }
+      }
+    }
+
+    window.addEventListener("message", handleMessage)
+    return () => window.removeEventListener("message", handleMessage)
+  }, [])
+
   useEffect(() => {
     if (users.length > 0 && userGender) {
       // Find the nearest user of opposite gender
@@ -616,6 +678,24 @@ export default function ExploreCanvas({ userGender, onToggleLeaderboard, showLea
                 </span>
               </div>
             )}
+            {isInProximity && (
+              <div className="flex items-center space-x-2 px-2 py-1 rounded-full bg-green-100 dark:bg-green-900/30">
+                <Target className="w-3 h-3 text-green-600" />
+                <span className="text-xs font-medium text-green-700 dark:text-green-400">In Range</span>
+                <span className="text-xs text-green-600 dark:text-green-400">
+                  {Math.round(proximityDistance)}m
+                </span>
+              </div>
+            )}
+            {nfcScanResult?.success && (
+              <div className="flex items-center space-x-2 px-2 py-1 rounded-full bg-yellow-100 dark:bg-yellow-900/30">
+                <Zap className="w-3 h-3 text-yellow-600" />
+                <span className="text-xs font-medium text-yellow-700 dark:text-yellow-400">+{pointsEarned} pts</span>
+                <span className="text-xs text-yellow-600 dark:text-yellow-400">
+                  {totalPoints} total
+                </span>
+              </div>
+            )}
           </div>
           <div className="flex items-center space-x-2">
             <Button
@@ -675,6 +755,16 @@ export default function ExploreCanvas({ userGender, onToggleLeaderboard, showLea
         >
           <Maximize2 className="w-3 h-3" />
         </Button>
+        {showNFCButton && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={openNFCScan}
+            className="w-10 h-10 rounded-full bg-green-500/80 hover:bg-green-600/80 backdrop-blur-md border border-green-400/50 text-white"
+          >
+            <Smartphone className="w-4 h-4" />
+          </Button>
+        )}
       </div>
 
       <div className="absolute bottom-4 left-4 right-4 p-3 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/50 dark:border-slate-800/50">
@@ -754,6 +844,23 @@ export default function ExploreCanvas({ userGender, onToggleLeaderboard, showLea
       {!userLocation && !locationError && (
         <div className="absolute top-16 left-4 right-4 p-2 bg-slate-50 dark:bg-slate-900/20 border border-slate-200 dark:border-slate-800 rounded-lg">
           <p className="text-xs text-slate-600 dark:text-slate-400 text-center">Requesting location permission...</p>
+        </div>
+      )}
+
+      {nfcError && (
+        <div className="absolute top-16 left-4 right-4 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <p className="text-xs text-red-600 dark:text-red-400 text-center">{nfcError}</p>
+        </div>
+      )}
+
+      {isInProximity && !showNFCButton && (
+        <div className="absolute bottom-20 left-4 right-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+          <div className="flex items-center justify-center space-x-2">
+            <Target className="w-4 h-4 text-green-600" />
+            <p className="text-xs text-green-600 dark:text-green-400 text-center">
+              You're in range! Tap the NFC button to scan.
+            </p>
+          </div>
         </div>
       )}
     </div>

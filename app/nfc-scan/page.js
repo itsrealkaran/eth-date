@@ -1,120 +1,147 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { useNFC } from "@/hooks/use-nfc"
-import { scanNFC } from "@/lib/api"
-import { 
-  Wifi, 
-  WifiOff, 
-  MapPin, 
-  Target, 
-  CheckCircle, 
-  XCircle, 
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { useNFC } from "@/hooks/use-nfc";
+import { scanNFC } from "@/lib/api";
+import {
+  Wifi,
+  WifiOff,
+  MapPin,
+  Target,
+  CheckCircle,
+  XCircle,
   AlertCircle,
   Smartphone,
-  Zap
-} from "lucide-react"
+  Zap,
+} from "lucide-react";
 
 export default function NFCScanPage() {
-  const [userId, setUserId] = useState(null)
-  const [targetProfile, setTargetProfile] = useState(null)
-  const [isScanning, setIsScanning] = useState(false)
-  const [scanResult, setScanResult] = useState(null)
-  const [isChromeMobile, setIsChromeMobile] = useState(false)
-  const [proximityStatus, setProximityStatus] = useState("checking")
-  const [scanError, setScanError] = useState(null)
-  const [pointsEarned, setPointsEarned] = useState(0)
-  const [totalPoints, setTotalPoints] = useState(0)
+  const [userId, setUserId] = useState(null);
+  const [targetProfile, setTargetProfile] = useState(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
+  const [isChromeMobile, setIsChromeMobile] = useState(false);
+  const [proximityStatus, setProximityStatus] = useState("checking");
+  const [scanError, setScanError] = useState(null);
+  const [pointsEarned, setPointsEarned] = useState(0);
+  const [totalPoints, setTotalPoints] = useState(0);
 
-  const { 
-    isNFCAvailable, 
-    isScanning: nfcScanning, 
-    scannedData, 
+  const {
+    isNFCAvailable,
+    isScanning: nfcScanning,
+    scannedData,
     error: nfcError,
     startScanning,
-    stopScanning
-  } = useNFC()
+    stopScanning,
+  } = useNFC();
 
   // Check if running on Chrome mobile
   useEffect(() => {
-    const userAgent = navigator.userAgent.toLowerCase()
-    const isChrome = userAgent.includes('chrome') && !userAgent.includes('edg')
-    const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent)
-    
-    setIsChromeMobile(isChrome && isMobile)
-  }, [])
+    const userAgent = navigator.userAgent.toLowerCase();
+    const isChrome = userAgent.includes("chrome") && !userAgent.includes("edg");
+    const isMobile =
+      /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
+        userAgent
+      );
+
+    setIsChromeMobile(isChrome && isMobile);
+  }, []);
 
   // Get URL parameters
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const userIdParam = urlParams.get('userId')
-    const targetName = urlParams.get('targetName')
-    const targetAvatar = urlParams.get('targetAvatar')
-    
+    const urlParams = new URLSearchParams(window.location.search);
+    const userIdParam = urlParams.get("userId");
+    const targetName = urlParams.get("targetName");
+    const targetAvatar = urlParams.get("targetAvatar");
+
     if (userIdParam) {
-      setUserId(userIdParam)
+      setUserId(userIdParam);
     }
-    
+
     if (targetName) {
       setTargetProfile({
         name: decodeURIComponent(targetName),
-        avatar: targetAvatar ? decodeURIComponent(targetAvatar) : null
-      })
+        avatar: targetAvatar ? decodeURIComponent(targetAvatar) : null,
+      });
     }
-  }, [])
+  }, []);
 
   // Handle NFC scan result
   useEffect(() => {
     if (scannedData && userId) {
-      handleNFCScan(scannedData)
+      handleNFCScan(scannedData);
     }
-  }, [scannedData, userId])
+  }, [scannedData, userId]);
 
   const handleNFCScan = async (url) => {
-    if (!userId || !url) return
+    if (!userId || !url) return;
 
-    setIsScanning(true)
-    setScanError(null)
+    setIsScanning(true);
+    setScanError(null);
 
     try {
-      const result = await scanNFC(userId, url)
-      
+      const result = await scanNFC(userId, url);
+
       if (result.success) {
-        setScanResult({
+        const scanResult = {
           success: true,
           message: result.message,
           targetName: result.targetName,
           pointsEarned: result.pointsEarned,
-          totalPoints: result.totalPoints
-        })
-        setPointsEarned(result.pointsEarned)
-        setTotalPoints(result.totalPoints)
+          totalPoints: result.totalPoints,
+        };
+        setScanResult(scanResult);
+        setPointsEarned(result.pointsEarned);
+        setTotalPoints(result.totalPoints);
+
+        // Send result back to parent window
+        if (window.opener) {
+          window.opener.postMessage(
+            {
+              type: "NFC_SCAN_RESULT",
+              result: scanResult,
+            },
+            "*"
+          );
+        }
       } else {
-        setScanResult({
+        const scanResult = {
           success: false,
           message: result.error || result.message,
-          reason: result.reason
-        })
+          reason: result.reason,
+        };
+        setScanResult(scanResult);
+
+        // Send result back to parent window
+        if (window.opener) {
+          window.opener.postMessage(
+            {
+              type: "NFC_SCAN_RESULT",
+              result: scanResult,
+            },
+            "*"
+          );
+        }
       }
     } catch (error) {
-      console.error("NFC scan error:", error)
-      setScanError("Failed to process NFC scan. Please try again.")
+      console.error("NFC scan error:", error);
+      setScanError("Failed to process NFC scan. Please try again.");
     } finally {
-      setIsScanning(false)
+      setIsScanning(false);
     }
-  }
+  };
 
   const startNFCScan = () => {
-    setScanResult(null)
-    setScanError(null)
-    startScanning()
-  }
+    setScanResult(null);
+    setScanError(null);
+    startScanning();
+  };
 
   const closeWindow = () => {
-    window.close()
-  }
+    window.close();
+  };
 
   // Not Chrome Mobile
   if (!isChromeMobile) {
@@ -129,7 +156,8 @@ export default function NFCScanPage() {
               Not Applicable
             </h2>
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              This feature requires Chrome on Android. Please open this page in Chrome mobile browser.
+              This feature requires Chrome on Android. Please open this page in
+              Chrome mobile browser.
             </p>
             <Button onClick={closeWindow} variant="outline" className="w-full">
               Close
@@ -137,7 +165,7 @@ export default function NFCScanPage() {
           </div>
         </Card>
       </div>
-    )
+    );
   }
 
   // NFC Not Available
@@ -153,7 +181,8 @@ export default function NFCScanPage() {
               NFC Not Supported
             </h2>
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              Your device doesn't support NFC or it's not enabled. Please enable NFC in your device settings.
+              Your device doesn't support NFC or it's not enabled. Please enable
+              NFC in your device settings.
             </p>
             <Button onClick={closeWindow} variant="outline" className="w-full">
               Close
@@ -161,7 +190,7 @@ export default function NFCScanPage() {
           </div>
         </Card>
       </div>
-    )
+    );
   }
 
   // Success Screen
@@ -182,8 +211,8 @@ export default function NFCScanPage() {
             {targetProfile && (
               <div className="flex items-center space-x-2 p-3 bg-slate-100 dark:bg-slate-800 rounded-lg">
                 {targetProfile.avatar && (
-                  <img 
-                    src={targetProfile.avatar} 
+                  <img
+                    src={targetProfile.avatar}
                     alt={targetProfile.name}
                     className="w-8 h-8 rounded-full"
                   />
@@ -210,7 +239,7 @@ export default function NFCScanPage() {
           </div>
         </Card>
       </div>
-    )
+    );
   }
 
   // Error Screen
@@ -234,7 +263,11 @@ export default function NFCScanPage() {
               </p>
             )}
             <div className="flex space-x-2 w-full">
-              <Button onClick={startNFCScan} variant="outline" className="flex-1">
+              <Button
+                onClick={startNFCScan}
+                variant="outline"
+                className="flex-1"
+              >
                 Try Again
               </Button>
               <Button onClick={closeWindow} className="flex-1">
@@ -244,7 +277,7 @@ export default function NFCScanPage() {
           </div>
         </Card>
       </div>
-    )
+    );
   }
 
   // Main Scan Screen
@@ -255,16 +288,16 @@ export default function NFCScanPage() {
           <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
             <Wifi className="w-8 h-8 text-blue-600" />
           </div>
-          
+
           <h2 className="text-xl font-bold text-slate-900 dark:text-white">
             Scan Target NFC
           </h2>
-          
+
           {targetProfile && (
             <div className="flex items-center space-x-2 p-3 bg-slate-100 dark:bg-slate-800 rounded-lg">
               {targetProfile.avatar && (
-                <img 
-                  src={targetProfile.avatar} 
+                <img
+                  src={targetProfile.avatar}
                   alt={targetProfile.name}
                   className="w-8 h-8 rounded-full"
                 />
@@ -313,7 +346,11 @@ export default function NFCScanPage() {
                 {isScanning ? "Processing..." : "Start Scan"}
               </Button>
             ) : (
-              <Button onClick={stopScanning} variant="outline" className="flex-1">
+              <Button
+                onClick={stopScanning}
+                variant="outline"
+                className="flex-1"
+              >
                 Stop Scan
               </Button>
             )}
@@ -331,5 +368,5 @@ export default function NFCScanPage() {
         </div>
       </Card>
     </div>
-  )
+  );
 }
