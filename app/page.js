@@ -57,14 +57,18 @@ export default function HomePage() {
       setLoading(true);
       setError(null);
 
-      // Always use demo-user-123 as the WorldID
-      const demoWorldId = "demo-user-123";
-
-      // Store the WorldID for this session
-      localStorage.setItem("worldId", demoWorldId);
+      // Check if user has a stored World ID from previous verification
+      const storedWorldId = localStorage.getItem("worldId");
+      if (storedWorldId) {
+        console.log("Found stored World ID:", storedWorldId);
+      } else {
+        console.log("No stored World ID found - user needs to verify");
+        setCurrentScreen("nfc-required");
+        return;
+      }
 
       try {
-        const response = await getProfileByWorldID(demoWorldId);
+        const response = await getProfileByWorldID(storedWorldId);
         console.log("API Response:", response);
 
         // Handle the nested profile structure
@@ -83,7 +87,7 @@ export default function HomePage() {
         }
       } catch (profileError) {
         console.log(
-          "Profile not found for demo-user-123, proceeding to NFC detection"
+          "Profile not found for World ID, proceeding to NFC detection"
         );
         console.error("Profile fetch error:", profileError);
       }
@@ -100,12 +104,15 @@ export default function HomePage() {
   };
 
   const openNFCDetection = () => {
-    // Use fixed demo WorldID
-    const demoWorldId = "demo-user-123";
-    const worldIdParam = `?worldid=${demoWorldId}`;
+    // Get the stored World ID from verification
+    const storedWorldId = localStorage.getItem("worldId");
 
-    // Store the WorldID for this session (already stored in checkAccountStatus)
-    localStorage.setItem("worldId", demoWorldId);
+    if (!storedWorldId) {
+      setError("No World ID found. Please verify with World ID first.");
+      return;
+    }
+
+    const worldIdParam = `?worldid=${storedWorldId}`;
 
     const nfcWindow = window.open(
       `/nfc-detection${worldIdParam}`,
@@ -131,6 +138,17 @@ export default function HomePage() {
 
   const handleWorldVerificationSuccess = (data) => {
     console.log("World ID verification successful:", data);
+
+    // Extract the nullifier_hash as the unique World ID
+    const worldId =
+      data.verifyRes?.nullifier_hash || data.verifyRes?.merkle_root;
+
+    if (worldId) {
+      // Store the actual World ID for this session
+      localStorage.setItem("worldId", worldId);
+      console.log("Stored World ID:", worldId);
+    }
+
     setIsWorldVerified(true);
     setShowWorldVerification(false);
     // Proceed with NFC detection after successful verification
@@ -249,7 +267,7 @@ export default function HomePage() {
         <ExploreCanvas
           userGender={userGender}
           userProfile={userProfile}
-          userWorldId="demo-user-123"
+          userWorldId={localStorage.getItem("worldId") || "unknown"}
           onToggleLeaderboard={toggleLeaderboard}
           showLeaderboard={showLeaderboard}
         />
@@ -266,7 +284,7 @@ export default function HomePage() {
         <WorldVerification
           onVerificationSuccess={handleWorldVerificationSuccess}
           onVerificationError={handleWorldVerificationError}
-          action="rizzler-verification"
+          action="rizzlerverification"
           signal="rizzler-app"
           verificationLevel={null}
         />

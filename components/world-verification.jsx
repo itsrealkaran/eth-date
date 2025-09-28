@@ -4,7 +4,7 @@ import { useWorldVerification } from '@/hooks/use-world-verification';
 export default function WorldVerification({ 
   onVerificationSuccess, 
   onVerificationError,
-  action = 'rizzler-verification',
+  action = 'rizzlerverification',
   signal = null,
   verificationLevel = null,
   className = '',
