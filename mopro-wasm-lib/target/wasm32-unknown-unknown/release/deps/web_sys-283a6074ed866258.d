@@ -1,0 +1,10 @@
+/Users/weeblet/Developer/eth-date/mopro-wasm-lib/target/wasm32-unknown-unknown/release/deps/web_sys-283a6074ed866258.d: /Users/weeblet/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.81/src/lib.rs /Users/weeblet/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.81/src/features/mod.rs /Users/weeblet/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.81/src/features/gen_EventTarget.rs /Users/weeblet/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.81/src/features/gen_Window.rs
+
+/Users/weeblet/Developer/eth-date/mopro-wasm-lib/target/wasm32-unknown-unknown/release/deps/libweb_sys-283a6074ed866258.rlib: /Users/weeblet/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.81/src/lib.rs /Users/weeblet/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.81/src/features/mod.rs /Users/weeblet/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.81/src/features/gen_EventTarget.rs /Users/weeblet/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.81/src/features/gen_Window.rs
+
+/Users/weeblet/Developer/eth-date/mopro-wasm-lib/target/wasm32-unknown-unknown/release/deps/libweb_sys-283a6074ed866258.rmeta: /Users/weeblet/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.81/src/lib.rs /Users/weeblet/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.81/src/features/mod.rs /Users/weeblet/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.81/src/features/gen_EventTarget.rs /Users/weeblet/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.81/src/features/gen_Window.rs
+
+/Users/weeblet/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.81/src/lib.rs:
+/Users/weeblet/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.81/src/features/mod.rs:
+/Users/weeblet/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.81/src/features/gen_EventTarget.rs:
+/Users/weeblet/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.81/src/features/gen_Window.rs:
