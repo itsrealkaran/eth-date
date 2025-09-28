@@ -30,6 +30,7 @@ export default function NFCDetectionPage() {
   const [worldIdProfile, setWorldIdProfile] = useState(null);
   const [loadingWorldIdProfile, setLoadingWorldIdProfile] = useState(false);
   const [customSettingGender, setCustomSettingGender] = useState(false);
+  const [genderError, setGenderError] = useState(null);
 
   // Fetch profile using WorldID on component mount
   useEffect(() => {
@@ -55,16 +56,19 @@ export default function NFCDetectionPage() {
 
   // Custom gender setting function with WorldID
   const setGenderWithWorldId = async (gender, worldId) => {
-    if (!profileData || !profileData.user) {
+    const currentProfile = profileData || worldIdProfile;
+
+    if (!currentProfile || !currentProfile.user) {
       console.error("No profile data available");
       return;
     }
 
     try {
       setCustomSettingGender(true);
+      setGenderError(null);
 
       // Extract profile ID from the profile data
-      const profileId = profileData.uuid || profileData.user.uuid;
+      const profileId = currentProfile.uuid || currentProfile.user.uuid;
 
       if (!profileId) {
         throw new Error("No profile ID found");
@@ -81,26 +85,25 @@ export default function NFCDetectionPage() {
       console.log("Gender set successfully:", result);
 
       // Update local profile data
-      setWorldIdProfile((prev) => ({
-        ...prev,
+      const updatedProfile = {
+        ...currentProfile,
         user: {
-          ...prev.user,
+          ...currentProfile.user,
           gender: gender,
         },
-      }));
+      };
+
+      // Update the appropriate profile state
+      if (worldIdProfile) {
+        setWorldIdProfile(updatedProfile);
+      }
 
       // Send success message back to parent window
       if (window.opener) {
         window.opener.postMessage(
           {
             type: "NFC_PROFILE_CONFIRMED",
-            profile: {
-              ...worldIdProfile,
-              user: {
-                ...worldIdProfile.user,
-                gender: gender,
-              },
-            },
+            profile: updatedProfile,
           },
           "*"
         );
@@ -108,6 +111,7 @@ export default function NFCDetectionPage() {
       }
     } catch (error) {
       console.error("Error setting gender with WorldID:", error);
+      setGenderError(`Failed to set gender: ${error.message}`);
     } finally {
       setCustomSettingGender(false);
     }
@@ -154,7 +158,7 @@ export default function NFCDetectionPage() {
   // Gender selection screen
   if (
     (showGenderSelection && profileData) ||
-    (worldIdProfile && !worldIdProfile.user.gender)
+    (worldIdProfile && worldIdProfile.user && !worldIdProfile.user.gender)
   ) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4">
@@ -185,11 +189,13 @@ export default function NFCDetectionPage() {
             {/* Gender selection buttons */}
             <div className="space-y-4 mb-6">
               <button
-                onClick={() => {
+                onClick={async () => {
                   const worldId = getWorldIdFromUrl();
+                  console.log("Male button clicked, WorldID:", worldId);
+
                   if (worldId) {
                     // Use custom gender setting with WorldID
-                    setGenderWithWorldId("M", worldId);
+                    await setGenderWithWorldId("M", worldId);
                   } else {
                     setGender("M");
                   }
@@ -215,11 +221,13 @@ export default function NFCDetectionPage() {
               </button>
 
               <button
-                onClick={() => {
+                onClick={async () => {
                   const worldId = getWorldIdFromUrl();
+                  console.log("Female button clicked, WorldID:", worldId);
+
                   if (worldId) {
                     // Use custom gender setting with WorldID
-                    setGenderWithWorldId("F", worldId);
+                    await setGenderWithWorldId("F", worldId);
                   } else {
                     setGender("F");
                   }
@@ -245,10 +253,19 @@ export default function NFCDetectionPage() {
               </button>
             </div>
 
+            {/* Error display */}
+            {genderError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-600 text-sm font-medium">
+                  {genderError}
+                </p>
+              </div>
+            )}
+
             {/* Back button */}
             <button
               onClick={clearProfile}
-              disabled={settingGender}
+              disabled={settingGender || customSettingGender}
               className="w-full px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               ← Go Back

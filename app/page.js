@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import GenderSelection from "@/components/gender-selection";
 import ExploreCanvas from "@/components/explore-canvas";
 import Leaderboard from "@/components/leaderboard";
-import { checkWorldIDAccount } from "@/lib/api";
+import { getProfileByWorldID } from "@/lib/api";
 
 export default function HomePage() {
   const [currentScreen, setCurrentScreen] = useState("loading");
@@ -21,6 +21,15 @@ export default function HomePage() {
     const handleMessage = (event) => {
       if (event.data.type === "NFC_PROFILE_CONFIRMED") {
         setUserProfile(event.data.profile);
+
+        // Store WorldID in localStorage for future sessions
+        const worldId = new URLSearchParams(window.location.search).get(
+          "worldid"
+        );
+        if (worldId) {
+          localStorage.setItem("worldId", worldId);
+        }
+
         // If profile has gender, go directly to explore, otherwise show gender selection
         if (event.data.profile.user.gender) {
           setUserGender(
@@ -45,17 +54,35 @@ export default function HomePage() {
       setLoading(true);
       setError(null);
 
-      const accountStatus = await checkWorldIDAccount();
+      // Always use demo-user-123 as the WorldID
+      const demoWorldId = "demo-user-123";
 
-      if (accountStatus.exists && accountStatus.userId) {
-        // Account exists - fetch profile and go directly to explore
-        setCurrentScreen("explore");
-        // You can fetch the user's profile here if needed
-      } else {
-        // Account doesn't exist - show NFC detection
-        setCurrentScreen("nfc-required");
+      // Store the WorldID for this session
+      localStorage.setItem("worldId", demoWorldId);
+
+      try {
+        const profile = await getProfileByWorldID(demoWorldId);
+        if (profile && profile.user) {
+          setUserProfile(profile);
+          // If profile has gender, go directly to explore
+          if (profile.user.gender) {
+            setUserGender(profile.user.gender === "M" ? "male" : "female");
+            setCurrentScreen("explore");
+          } else {
+            setCurrentScreen("gender");
+          }
+          return;
+        }
+      } catch (profileError) {
+        console.log(
+          "Profile not found for demo-user-123, proceeding to NFC detection"
+        );
       }
+
+      // Profile not found - show NFC detection
+      setCurrentScreen("nfc-required");
     } catch (error) {
+      console.error("Error checking account status:", error);
       setError("Failed to check account status. Please try again.");
       setCurrentScreen("nfc-required");
     } finally {
@@ -64,9 +91,12 @@ export default function HomePage() {
   };
 
   const openNFCDetection = () => {
-    // Generate a demo WorldID or use a real one
-    const demoWorldId = "demo-user-" + Math.random().toString(36).substr(2, 9);
+    // Use fixed demo WorldID
+    const demoWorldId = "demo-user-123";
     const worldIdParam = `?worldid=${demoWorldId}`;
+
+    // Store the WorldID for this session (already stored in checkAccountStatus)
+    localStorage.setItem("worldId", demoWorldId);
 
     const nfcWindow = window.open(
       `/nfc-detection${worldIdParam}`,
@@ -184,6 +214,7 @@ export default function HomePage() {
         <ExploreCanvas
           userGender={userGender}
           userProfile={userProfile}
+          userWorldId="demo-user-123"
           onToggleLeaderboard={toggleLeaderboard}
           showLeaderboard={showLeaderboard}
         />

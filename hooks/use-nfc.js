@@ -94,10 +94,10 @@ export const useNFC = () => {
 
   // Start NFC scanning
   const startScan = useCallback(async () => {
-    if (!isSupported) {
-      setError("NFC is not supported");
-      return;
-    }
+    // if (!isSupported) {
+    //   setError("NFC is not supported");
+    //   return;
+    // }
 
     try {
       setError(null);
@@ -109,17 +109,13 @@ export const useNFC = () => {
         window.location.hostname === "localhost";
 
       if (isDev) {
-        // Development mode: simulate NFC scanning with mock data
-        console.log("Development mode: Mock NFC scanning started");
+        // Development mode: simulate NFC scanning by fetching data by ID directly (no NFC)
+        console.log("Development mode: Simulating scan by fetching profile by ID");
 
-        // Simulate a delay and then "scan" a mock profile
+        // Simulate a delay and then "scan" a mock profile by ID
         setTimeout(async () => {
-          console.log("Development mode: Simulating NFC tag detection");
-
-          // Mock ETHGlobal profile URLs for testing (use localhost in dev)
-          const demoId = ["1d7s7pl"];
-
-          const randomUrl = demoId[Math.floor(Math.random() * demoId.length)];
+          // Use a demo ID for local testing
+          const demoId = "2qj3oud";
 
           const mockScanData = {
             id: Date.now(),
@@ -127,17 +123,17 @@ export const useNFC = () => {
             timestamp: new Date().toISOString(),
             records: [
               {
-                recordType: "url",
+                recordType: "id",
                 mediaType: null,
                 id: "",
-                data: randomUrl,
+                data: demoId,
               },
             ],
           };
 
           setLastScan(mockScanData);
-          console.log("Development mode: Mock URL detected:", randomUrl);
-          await fetchProfileData(randomUrl);
+          console.log("Development mode: Simulated ID detected:", demoId);
+          await fetchProfileData(demoId); // Directly fetch by ID, not URL
         }, 2000); // 2 second delay to simulate scanning
 
         return;
@@ -190,7 +186,7 @@ export const useNFC = () => {
 
         setLastScan(scanData);
 
-        // Check if any record contains a URL and make API call
+        // Check if any record contains a URL or ID and make API call
         for (const record of scanData.records) {
           if (
             record.recordType === "url" ||
@@ -201,6 +197,11 @@ export const useNFC = () => {
             break; // Only process the first URL found
           } else if (record.recordType === "text" && isValidURL(record.data)) {
             console.log("URL detected in text record:", record.data);
+            await fetchProfileData(record.data);
+            break;
+          } else if (record.recordType === "id" && record.data) {
+            // If the record is an ID, fetch by ID
+            console.log("ID detected in NFC tag:", record.data);
             await fetchProfileData(record.data);
             break;
           }

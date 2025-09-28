@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Trophy, Users, Navigation, Target, Plus, Minus, Maximize2, Compass, Map } from "lucide-react"
+import { Trophy, Users, Navigation, Target, Plus, Minus, Maximize2, Compass, Map, MapPin, Zap, Smartphone } from "lucide-react"
 import { useWebSocket } from "@/hooks/use-websocket"
+import { getTargetByWorldID, scanNFC } from "@/lib/api"
 
-export default function ExploreCanvas({ userGender, onToggleLeaderboard, showLeaderboard }) {
+export default function ExploreCanvas({ userGender, onToggleLeaderboard, showLeaderboard, userWorldId }) {
   const canvasRef = useRef(null)
   const [userPosition, setUserPosition] = useState({ x: 200, y: 300 })
   const [targetCoordinate, setTargetCoordinate] = useState(null)
@@ -18,6 +19,264 @@ export default function ExploreCanvas({ userGender, onToggleLeaderboard, showLea
   const [compassAngle, setCompassAngle] = useState(0)
   const [distanceToTarget, setDistanceToTarget] = useState(0)
   const { isConnected, users, error, sendPosition } = useWebSocket()
+  
+  // Location and target states
+  const [userLocation, setUserLocation] = useState(null)
+  const [targetLocation, setTargetLocation] = useState(null)
+  const [targetProfile, setTargetProfile] = useState(null)
+  const [locationPermission, setLocationPermission] = useState(null)
+  const [locationError, setLocationError] = useState(null)
+  const [isLoadingTarget, setIsLoadingTarget] = useState(false)
+  const [targetError, setTargetError] = useState(null)
+  
+  // Proximity and NFC states
+  const [isInProximity, setIsInProximity] = useState(false)
+  const [proximityDistance, setProximityDistance] = useState(null)
+  const [showNFCButton, setShowNFCButton] = useState(false)
+  const [nfcScanResult, setNfcScanResult] = useState(null)
+  const [isScanningNFC, setIsScanningNFC] = useState(false)
+  const [nfcError, setNfcError] = useState(null)
+  const [pointsEarned, setPointsEarned] = useState(0)
+  const [totalPoints, setTotalPoints] = useState(0)
+
+  // Request location permission
+  const requestLocationPermission = async () => {
+    if (!navigator.geolocation) {
+      setLocationError("Geolocation is not supported by this browser")
+      return false
+    }
+
+    try {
+      const permission = await navigator.permissions.query({ name: 'geolocation' })
+      setLocationPermission(permission.state)
+      
+      if (permission.state === 'denied') {
+        setLocationError("Location permission denied. Please enable location access in your browser settings.")
+        return false
+      }
+
+      return true
+    } catch (error) {
+      console.error("Error checking location permission:", error)
+      setLocationError("Failed to check location permission")
+      return false
+    }
+  }
+
+  // Get current location
+  const getCurrentLocation = () => {
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const location = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            timestamp: position.timestamp
+          }
+          setUserLocation(location)
+          setLocationError(null)
+          resolve(location)
+        },
+        (error) => {
+          console.error("Location error:", error)
+          setLocationError(`Location error: ${error.message}`)
+          reject(error)
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 60000
+        }
+      )
+    })
+  }
+
+  // Fetch target information
+  const fetchTarget = async () => {
+    if (!userWorldId) return
+
+    setIsLoadingTarget(true)
+    setTargetError(null)
+
+    try {
+      const targetData = await getTargetByWorldID(userWorldId)
+      
+      if (targetData.coordinates) {
+        setTargetLocation(targetData.coordinates)
+        setTargetProfile(targetData.targetProfile)
+        
+        // Calculate distance if we have user location
+        if (userLocation) {
+          const distance = calculateDistance(
+            userLocation.latitude,
+            userLocation.longitude,
+            targetData.coordinates.latitude,
+            targetData.coordinates.longitude
+          )
+          setDistanceToTarget(distance)
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching target:", error)
+      setTargetError("Failed to fetch target information")
+    } finally {
+      setIsLoadingTarget(false)
+    }
+  }
+
+  // Calculate distance between two coordinates
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371e3 // Earth's radius in meters
+    const φ1 = lat1 * Math.PI / 180
+    const φ2 = lat2 * Math.PI / 180
+    const Δφ = (lat2 - lat1) * Math.PI / 180
+    const Δλ = (lon2 - lon1) * Math.PI / 180
+
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+        Math.cos(φ1) * Math.cos(φ2) *
+        Math.sin(Δλ / 2) * Math.sin(Δλ / 2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+
+    return R * c // Distance in meters
+  }
+
+  // Calculate compass bearing to target
+  const calculateBearing = (lat1, lon1, lat2, lon2) => {
+    const φ1 = lat1 * Math.PI / 180
+    const φ2 = lat2 * Math.PI / 180
+    const Δλ = (lon2 - lon1) * Math.PI / 180
+
+    const y = Math.sin(Δλ) * Math.cos(φ2)
+    const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ)
+
+    const bearing = Math.atan2(y, x) * (180 / Math.PI)
+    return (bearing + 360) % 360 // Normalize to 0-360
+  }
+
+  // Initialize location and target
+  useEffect(() => {
+    const initializeLocation = async () => {
+      const hasPermission = await requestLocationPermission()
+      if (hasPermission) {
+        try {
+          await getCurrentLocation()
+        } catch (error) {
+          console.error("Failed to get initial location:", error)
+        }
+      }
+    }
+
+    initializeLocation()
+  }, [])
+
+  // Fetch target when userWorldId is available
+  useEffect(() => {
+    if (userWorldId) {
+      fetchTarget()
+    }
+  }, [userWorldId])
+
+  // Poll for location updates every 30 seconds
+  useEffect(() => {
+    if (locationPermission === 'granted') {
+      const interval = setInterval(async () => {
+        try {
+          await getCurrentLocation()
+        } catch (error) {
+          console.error("Location polling error:", error)
+        }
+      }, 30000)
+
+      return () => clearInterval(interval)
+    }
+  }, [locationPermission])
+
+  // Poll for target updates every 60 seconds
+  useEffect(() => {
+    if (userWorldId) {
+      const interval = setInterval(() => {
+        fetchTarget()
+      }, 60000)
+
+      return () => clearInterval(interval)
+    }
+  }, [userWorldId])
+
+  // Update compass angle when locations change
+  useEffect(() => {
+    if (userLocation && targetLocation) {
+      const bearing = calculateBearing(
+        userLocation.latitude,
+        userLocation.longitude,
+        targetLocation.latitude,
+        targetLocation.longitude
+      )
+      setCompassAngle(bearing)
+    }
+  }, [userLocation, targetLocation])
+
+  // Check proximity to target
+  useEffect(() => {
+    if (userLocation && targetLocation) {
+      const distance = calculateDistance(
+        userLocation.latitude,
+        userLocation.longitude,
+        targetLocation.latitude,
+        targetLocation.longitude
+      )
+      
+      setProximityDistance(distance)
+      
+      // Consider in proximity if within 100 meters
+      const inProximity = distance <= 100
+      setIsInProximity(inProximity)
+      setShowNFCButton(inProximity)
+      
+      // Update distance to target for display
+      setDistanceToTarget(distance)
+    }
+  }, [userLocation, targetLocation])
+
+  // Open NFC scan page
+  const openNFCScan = () => {
+    if (!userWorldId || !targetProfile) return
+
+    const params = new URLSearchParams({
+      userId: userWorldId,
+      targetName: encodeURIComponent(targetProfile.name || 'Target'),
+      targetAvatar: targetProfile.avatar ? encodeURIComponent(targetProfile.avatar) : ''
+    })
+
+    const nfcUrl = `/nfc-scan?${params.toString()}`
+    
+    // Open in new window/tab for Chrome mobile
+    const nfcWindow = window.open(
+      nfcUrl,
+      "nfc-scan",
+      "width=400,height=600,scrollbars=yes,resizable=yes"
+    )
+
+    if (!nfcWindow) {
+      setNfcError("Popup blocked. Please allow popups for this site and try again.")
+    }
+  }
+
+  // Handle NFC scan result from popup
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (event.data.type === "NFC_SCAN_RESULT") {
+        setNfcScanResult(event.data.result)
+        if (event.data.result.success) {
+          setPointsEarned(event.data.result.pointsEarned)
+          setTotalPoints(event.data.result.totalPoints)
+        }
+      }
+    }
+
+    window.addEventListener("message", handleMessage)
+    return () => window.removeEventListener("message", handleMessage)
+  }, [])
 
   useEffect(() => {
     if (users.length > 0 && userGender) {
@@ -91,7 +350,7 @@ export default function ExploreCanvas({ userGender, onToggleLeaderboard, showLea
     ctx.lineWidth = 1
     ctx.stroke()
 
-    if (nearestUser && distanceToTarget > 0) {
+    if (targetLocation && userLocation && distanceToTarget > 0) {
       // Draw directional arrow
       const arrowLength = radius * 0.7
       const arrowAngle = (compassAngle * Math.PI) / 180
@@ -136,7 +395,7 @@ export default function ExploreCanvas({ userGender, onToggleLeaderboard, showLea
       ctx.stroke()
 
       // Distance indicator
-      const distanceRadius = Math.max(20, Math.min(radius * 0.8, distanceToTarget * 2))
+      const distanceRadius = Math.max(20, Math.min(radius * 0.8, distanceToTarget * 0.01))
       ctx.beginPath()
       ctx.arc(centerX, centerY, distanceRadius, 0, 2 * Math.PI)
       ctx.strokeStyle = "rgba(251, 191, 36, 0.6)"
@@ -401,12 +660,39 @@ export default function ExploreCanvas({ userGender, onToggleLeaderboard, showLea
               <Users className="w-3 h-3 text-slate-600 dark:text-slate-400" />
               <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{users.length + 1}</span>
             </div>
-            {nearestUser && (
+            {targetProfile && (
               <div className="flex items-center space-x-2 px-2 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30">
                 <Target className="w-3 h-3 text-amber-600" />
-                <span className="text-xs font-medium text-amber-700 dark:text-amber-400">{nearestUser.name}</span>
+                <span className="text-xs font-medium text-amber-700 dark:text-amber-400">{targetProfile.name}</span>
                 <span className="text-xs text-amber-600 dark:text-amber-400">
                   {Math.round(distanceToTarget)}m
+                </span>
+              </div>
+            )}
+            {userLocation && (
+              <div className="flex items-center space-x-2 px-2 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30">
+                <MapPin className="w-3 h-3 text-emerald-600" />
+                <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">GPS</span>
+                <span className="text-xs text-emerald-600 dark:text-emerald-400">
+                  ±{Math.round(userLocation.accuracy)}m
+                </span>
+              </div>
+            )}
+            {isInProximity && (
+              <div className="flex items-center space-x-2 px-2 py-1 rounded-full bg-green-100 dark:bg-green-900/30">
+                <Target className="w-3 h-3 text-green-600" />
+                <span className="text-xs font-medium text-green-700 dark:text-green-400">In Range</span>
+                <span className="text-xs text-green-600 dark:text-green-400">
+                  {Math.round(proximityDistance)}m
+                </span>
+              </div>
+            )}
+            {nfcScanResult?.success && (
+              <div className="flex items-center space-x-2 px-2 py-1 rounded-full bg-yellow-100 dark:bg-yellow-900/30">
+                <Zap className="w-3 h-3 text-yellow-600" />
+                <span className="text-xs font-medium text-yellow-700 dark:text-yellow-400">+{pointsEarned} pts</span>
+                <span className="text-xs text-yellow-600 dark:text-yellow-400">
+                  {totalPoints} total
                 </span>
               </div>
             )}
@@ -469,12 +755,22 @@ export default function ExploreCanvas({ userGender, onToggleLeaderboard, showLea
         >
           <Maximize2 className="w-3 h-3" />
         </Button>
+        {showNFCButton && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={openNFCScan}
+            className="w-10 h-10 rounded-full bg-green-500/80 hover:bg-green-600/80 backdrop-blur-md border border-green-400/50 text-white"
+          >
+            <Smartphone className="w-4 h-4" />
+          </Button>
+        )}
       </div>
 
       <div className="absolute bottom-4 left-4 right-4 p-3 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/50 dark:border-slate-800/50">
         <p className="text-xs text-center text-slate-600 dark:text-slate-400 mb-2">
           {viewMode === "compass" 
-            ? "Arrow points to nearest person • Follow the direction" 
+            ? "Arrow points to your target • Follow the direction" 
             : "Tap to move • Find nearby explorers"
           }
         </p>
@@ -486,12 +782,18 @@ export default function ExploreCanvas({ userGender, onToggleLeaderboard, showLea
             </div>
             <div className="flex items-center space-x-1">
               <Navigation className="w-3 h-3 text-amber-500" />
-              <span className="text-slate-600 dark:text-slate-400">Direction</span>
+              <span className="text-slate-600 dark:text-slate-400">Target</span>
             </div>
             <div className="flex items-center space-x-1">
               <div className="w-2 h-2 rounded-full bg-amber-400"></div>
               <span className="text-slate-600 dark:text-slate-400">Distance</span>
             </div>
+            {userLocation && (
+              <div className="flex items-center space-x-1">
+                <MapPin className="w-3 h-3 text-emerald-500" />
+                <span className="text-slate-600 dark:text-slate-400">GPS</span>
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex items-center justify-center space-x-4 text-xs">
@@ -518,6 +820,47 @@ export default function ExploreCanvas({ userGender, onToggleLeaderboard, showLea
       {error && (
         <div className="absolute top-16 left-4 right-4 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
           <p className="text-xs text-red-600 dark:text-red-400 text-center">{error}</p>
+        </div>
+      )}
+
+      {locationError && (
+        <div className="absolute top-16 left-4 right-4 p-2 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+          <p className="text-xs text-orange-600 dark:text-orange-400 text-center">{locationError}</p>
+        </div>
+      )}
+
+      {targetError && (
+        <div className="absolute top-16 left-4 right-4 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+          <p className="text-xs text-yellow-600 dark:text-yellow-400 text-center">{targetError}</p>
+        </div>
+      )}
+
+      {isLoadingTarget && (
+        <div className="absolute top-16 left-4 right-4 p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <p className="text-xs text-blue-600 dark:text-blue-400 text-center">Loading target...</p>
+        </div>
+      )}
+
+      {!userLocation && !locationError && (
+        <div className="absolute top-16 left-4 right-4 p-2 bg-slate-50 dark:bg-slate-900/20 border border-slate-200 dark:border-slate-800 rounded-lg">
+          <p className="text-xs text-slate-600 dark:text-slate-400 text-center">Requesting location permission...</p>
+        </div>
+      )}
+
+      {nfcError && (
+        <div className="absolute top-16 left-4 right-4 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <p className="text-xs text-red-600 dark:text-red-400 text-center">{nfcError}</p>
+        </div>
+      )}
+
+      {isInProximity && !showNFCButton && (
+        <div className="absolute bottom-20 left-4 right-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+          <div className="flex items-center justify-center space-x-2">
+            <Target className="w-4 h-4 text-green-600" />
+            <p className="text-xs text-green-600 dark:text-green-400 text-center">
+              You're in range! Tap the NFC button to scan.
+            </p>
+          </div>
         </div>
       )}
     </div>
